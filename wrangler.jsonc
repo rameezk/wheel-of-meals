@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "wheel-of-meals",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-08-01",
+  "observability": {
+    "enabled": true,
+  },
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "routes": [
+    {
+      "pattern": "wheel-of-meals.app.rameezkhan.dev",
+      "custom_domain": true,
+    },
+  ],
+}
