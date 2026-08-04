@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans:
+    ui-rounded, "SF Pro Rounded", "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
