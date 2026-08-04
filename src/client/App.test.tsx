@@ -2,12 +2,14 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { remembered } from "./remembered";
 import { aHousehold, aSlug, answerInTurn, answerWith } from "./test-fixtures";
 
 const visit = (path: string) => window.history.pushState({}, "", path);
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
   visit("/");
 });
 
@@ -77,6 +79,25 @@ describe("the app", () => {
     expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
       /not cooking/i,
     );
+  });
+
+  it("opens the Household whose Slug was typed in, and remembers it", async () => {
+    answerInTurn({ body: aHousehold }, { body: aHousehold });
+
+    visit("/");
+    render(<App />);
+
+    await userEvent.type(
+      screen.getByLabelText(/four words/i),
+      aSlug.replaceAll("-", " "),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Open" }));
+
+    expect(
+      await screen.findByRole("heading", { name: "Cooking Days" }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe(`/${aSlug}`);
+    expect(remembered()).toEqual({ slug: aSlug, name: null });
   });
 
   it("falls back to the start for a path that is not a Slug", () => {

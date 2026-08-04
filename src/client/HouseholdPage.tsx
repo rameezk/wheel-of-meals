@@ -11,6 +11,7 @@ import { AppShell } from "./AppShell";
 import { dayLabels } from "./days";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
+import { forget, remember } from "./remembered";
 import { quietButtonStyle } from "./styles";
 
 type Lookup =
@@ -64,6 +65,14 @@ export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
 
     return () => controller.abort();
   }, [slug]);
+
+  const { state } = lookup;
+  const name = lookup.state === "found" ? lookup.household.name : null;
+
+  useEffect(() => {
+    if (state === "found") remember({ slug, name });
+    else if (state === "missing") forget(slug);
+  }, [state, name, slug]);
 
   if (lookup.state === "looking") {
     return (
