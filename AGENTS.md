@@ -5,14 +5,28 @@ Randomise your meals for the week.
 ## Workflow
 
 - All work is committed to a branch and delivered through a pull request. Never
-  commit directly to `main`. The `default` ruleset already rejects a direct push,
-  so this rule exists to stop you attempting it, not to create the constraint.
-- Use conventional commit prefixes on every commit, including working commits on
-  a branch.
-- The pull request title is the commit message - write it as one, prefix
-  included.
-- The pull request body becomes the commit body. Keep it to a sentence or two
-  plus `Fixes #N`; the detail belongs in the issue.
+  commit directly to `main`, and never push - the human pushes the branch and
+  opens the pull request with `gh pr create --fill`. The `default` ruleset
+  already rejects a direct push, so this rule exists to stop you attempting it,
+  not to create the constraint.
+- Every pull request closes exactly one issue. If none exists, create one before
+  starting the work.
+- Use conventional commit prefixes on every commit.
+- Until the pull request exists, the branch is exactly one commit. Amend it with
+  each further change; never stack a second. `gh pr create --fill` takes its
+  title and body from that one commit, and at two or more commits it falls back
+  to the branch name and a list of subjects, losing everything below the subject
+  line. Once the pull request is open its title and body belong to GitHub, so
+  later commits are added normally - never amend or force-push a branch that has
+  been pushed.
+- That commit is the pull request, and after the squash it is the permanent
+  record on `main`. Write it as one:
+  - Subject: the conventional commit message. No issue number - GitHub appends
+    the pull request number at the squash, and two bracketed numbers in one
+    subject cannot be told apart.
+  - Body: what changed and why it was built that way. The issue holds the spec;
+    this holds the reasoning a later `git blame` needs.
+  - Last line: `Fixes #N`. Nothing else closes the issue.
 - `main` is squash-only. See
   [ADR-0006](docs/adr/0006-main-is-squash-only-and-unversioned.md).
 

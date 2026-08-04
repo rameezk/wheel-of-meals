@@ -12,8 +12,19 @@ The unit of history is now the unit that is actually built, reviewed and would b
 reverted. A single revert backs out a whole feature, a `git bisect` step lands on
 a shippable state rather than a half-built one, and `git log --grep` finds the
 originating issue because `Fixes #N` travels from the pull request body into git.
-Intermediate commits are not lost - they stay on the pull request page, which is
-where they are useful during review and nowhere else.
+
+That is the only route it travels. GitHub derives the link from the pull request
+body alone, and the squash discards every branch commit body, so a closing
+keyword closes nothing unless it reaches the pull request body first.
+
+It reaches it by being copied there. The pull request is opened by the human with
+`gh pr create --fill`, since an agent never pushes, and on a branch of exactly
+one commit `--fill` is lossless: the title comes from that commit's subject and
+the body from its body, `Fixes #N` included. At two or more commits it falls back
+to the branch name and a list of subjects, copying nothing, and the reference
+dies on the branch. So the branch carries exactly one commit until the pull
+request exists, and that commit is written as the pull request - `AGENTS.md`
+states the rules.
 
 Linearity is a consequence, not a rule. Squash-only makes it structural, so no
 linear-history rule is configured; adding one would state the same constraint
@@ -99,8 +110,26 @@ method and nothing can land on `main` at all, so they move together or not at
 all.
 
 A pull request title and body are permanent, and are written accordingly -
-`AGENTS.md` states the rules. Detail stays in the issue, where it can still be
-revised after the commit is written.
+`AGENTS.md` states the rules. The body is the only prose that reaches `main`, so
+it carries the reasoning a later `git blame` needs: what changed and why it was
+built that way. The issue keeps the spec, which was written before the work and
+answers a different question.
+
+The branch carries exactly one commit until the pull request is opened, amended
+with each further change. That commit is the pull request, so the convention
+holds by construction rather than by anyone remembering it at the moment of
+handoff. The cost is that a pull request opens with nothing to read commit by
+commit; under squash-only that granularity was discarded at the merge anyway, and
+a branch whose commits are each independently meaningful is a branch that should
+have been several pull requests. After the pull request exists its title and body
+belong to GitHub, so later commits are added normally and absorbed by the squash.
+
+Squash is what makes that forgiving. Rebase merge would land every
+post-pull-request commit on `main` individually, drop the `(#N)` suffix that
+points a commit back at its pull request, and freeze the message in the commit
+where a reviewer can no longer correct it. Its revival trigger is unchanged and
+is now further away, not closer: a branch of independently meaningful commits is
+the thing this rule forbids.
 
 Existing history is left alone. The merge-commit tangles from earlier pull
 requests stay where they are - `main` is deployed from and rewriting it for
