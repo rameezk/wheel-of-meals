@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { failure } from "../shared/api";
 import {
   daysOfTheWeek,
   householdNameMaxLength,
@@ -8,7 +7,7 @@ import {
   type Household,
   type UpdateHousehold,
 } from "../shared/household";
-import { Refusal, updateHousehold } from "./api";
+import { messageFor, updateHousehold } from "./api";
 import { dayLabels } from "./days";
 import {
   alertStyle,
@@ -67,7 +66,7 @@ export const HouseholdSettings = ({
       onChange(await updateHousehold(household.slug, wanted));
       onDone();
     } catch (error) {
-      setProblem(error instanceof Refusal ? error.message : failure.message);
+      setProblem(messageFor(error));
     } finally {
       setSaving(false);
     }

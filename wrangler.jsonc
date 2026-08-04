@@ -20,6 +20,24 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"],
   },
+  "ratelimits": [
+    {
+      "name": "HOUSEHOLD_CREATION",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 20,
+        "period": 60,
+      },
+    },
+    {
+      "name": "HOUSEHOLD_WRITES",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 120,
+        "period": 60,
+      },
+    },
+  ],
   "routes": [
     {
       "pattern": "wheel-of-meals.rameezkhan.dev",

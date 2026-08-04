@@ -12,6 +12,9 @@ export type MealDraft = { name: string; description: string };
 
 export class Refusal extends Error {}
 
+export const messageFor = (error: unknown) =>
+  error instanceof Refusal ? error.message : failure.message;
+
 const refusalSchema = z.object({ error: z.string(), message: z.string() });
 
 const refuse = async (response: Response): Promise<never> => {
@@ -27,7 +30,7 @@ const sending = (method: string, body: unknown): RequestInit => ({
 
 export const createHousehold = async (): Promise<Household> => {
   const response = await fetch("/api/households", { method: "POST" });
-  if (!response.ok) throw new Error(`Creation failed with ${response.status}`);
+  if (!response.ok) return refuse(response);
   return householdSchema.parse(await response.json());
 };
 
