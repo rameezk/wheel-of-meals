@@ -6,7 +6,9 @@ import {
   defaultCookingDays,
   type Household,
 } from "../shared/household";
+import type { Meal } from "../shared/meal";
 import { generateSlug, slugSchema, type Slug } from "../shared/slug";
+import { readMealBank } from "./meals";
 
 const slugAttempts = 8;
 
@@ -19,13 +21,13 @@ const rowSchema = z.object({
   created_at: z.iso.datetime(),
 });
 
-const toHousehold = (row: unknown): Household => {
+const toHousehold = (row: unknown, mealBank: Meal[] = []): Household => {
   const { slug, name, cooking_days, created_at } = rowSchema.parse(row);
   return {
     slug,
     name,
     cookingDays: cooking_days,
-    mealBank: [],
+    mealBank,
     createdAt: created_at,
   };
 };
@@ -73,5 +75,5 @@ households.get("/api/households/:slug", async (c) => {
   const row = await findHousehold(c.env.DB, slug.data);
   if (!row) return c.json(notFound, 404);
 
-  return c.json(toHousehold(row));
+  return c.json(toHousehold(row, await readMealBank(c.env.DB, slug.data)));
 });

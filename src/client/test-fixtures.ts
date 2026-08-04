@@ -1,5 +1,6 @@
 import { vi } from "vitest";
 import type { Household } from "../shared/household";
+import type { Meal } from "../shared/meal";
 
 export const aSlug = "banana-apple-delicious-sauce";
 
@@ -11,10 +12,26 @@ export const aHousehold: Household = {
   createdAt: "2026-08-04T12:00:00.000Z",
 };
 
+export const aMeal: Meal = {
+  id: "meal-1",
+  name: "Butter chicken",
+  description: "The one with the coconut milk",
+};
+
+const answer = (body: unknown, status: number) =>
+  new Response(status === 204 ? null : JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+
 export const answerWith = (body: unknown, status = 200) =>
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json" },
-    }),
-  );
+  vi.spyOn(globalThis, "fetch").mockResolvedValue(answer(body, status));
+
+export const answerInTurn = (
+  ...answers: { body?: unknown; status?: number }[]
+) => {
+  const spy = vi.spyOn(globalThis, "fetch");
+  for (const { body, status } of answers)
+    spy.mockResolvedValueOnce(answer(body, status ?? 200));
+  return spy;
+};

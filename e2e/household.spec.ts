@@ -22,7 +22,7 @@ test("creating a Household hands over a Slug that opens it again", async ({
   await expect(page).toHaveURL(new RegExp(`${href}$`));
   await expect(page.getByText("Cooking Days")).toBeVisible();
   await expect(page.getByText("Sunday")).toBeVisible();
-  await expect(page.getByText("No meals yet.")).toBeVisible();
+  await expect(page.getByText("No Meals yet.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByText("Cooking Days")).toBeVisible();
