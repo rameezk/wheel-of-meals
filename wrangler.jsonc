@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "wheel-of-meals",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "ac3a0d53-036f-4c70-a165-342fab3bfe22",
       "migrations_dir": "migrations",
     },
   ],
