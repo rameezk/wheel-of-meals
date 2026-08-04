@@ -86,9 +86,11 @@ const findHousehold = (db: D1Database, slug: Slug) =>
     .bind(slug)
     .first();
 
+export const householdCreationPath = "/api/households";
+
 export const households = new Hono<{ Bindings: Env }>();
 
-households.post("/api/households", async (c) =>
+households.post(householdCreationPath, async (c) =>
   c.json(await createHousehold(c.env.DB), 201),
 );
 

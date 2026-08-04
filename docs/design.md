@@ -79,9 +79,10 @@ people editing at once both simply succeed. Updates appear on refresh; there is
 no polling and no live connection.
 
 **Limits.** Meal name 100 characters, description 500, 500 Meals per Household.
-Cloudflare rate limiting rules sit in front of the write endpoints. Caps are set
-now because retrofitting them means choosing between breaking existing data and
-not enforcing the limit.
+Every write endpoint is rate limited per caller in the Worker - 20 Household
+creations a minute, 120 other writes - see ADR-0007. Caps are set now because
+retrofitting them means choosing between breaking existing data and not
+enforcing the limit.
 
 ## Experience
 

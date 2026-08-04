@@ -1,12 +1,17 @@
 import { useState, type FormEvent } from "react";
-import { failure } from "../shared/api";
 import {
   mealDescriptionMaxLength,
   mealNameMaxLength,
   type Meal,
 } from "../shared/meal";
 import type { Slug } from "../shared/slug";
-import { addMeal, deleteMeal, editMeal, Refusal, type MealDraft } from "./api";
+import {
+  addMeal,
+  deleteMeal,
+  editMeal,
+  messageFor,
+  type MealDraft,
+} from "./api";
 import {
   alertStyle,
   fieldStyle,
@@ -122,7 +127,7 @@ export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
       onChange(await change());
       return true;
     } catch (error) {
-      setProblem(error instanceof Refusal ? error.message : failure.message);
+      setProblem(messageFor(error));
       return false;
     } finally {
       setWorking(false);

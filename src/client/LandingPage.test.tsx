@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { tooManyRequests } from "../shared/api";
 import { LandingPage } from "./LandingPage";
 import { remember } from "./remembered";
 import { aHousehold, aSlug, answerWith } from "./test-fixtures";
@@ -106,6 +107,18 @@ describe("the landing page", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /something went wrong/i,
+    );
+    expect(screen.getByRole("button", { name: /create/i })).toBeEnabled();
+  });
+
+  it("passes on why a rate-limited creation was refused", async () => {
+    answerWith(tooManyRequests, 429);
+
+    render(<LandingPage onGo={() => {}} />);
+    await pressCreate();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      tooManyRequests.message,
     );
     expect(screen.getByRole("button", { name: /create/i })).toBeEnabled();
   });

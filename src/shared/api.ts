@@ -10,6 +10,11 @@ export const failure = {
   message: "Something went wrong. Try again.",
 } as const;
 
+export const tooManyRequests = {
+  error: "too_many_requests",
+  message: "That was too much at once. Wait a minute and try again.",
+} as const;
+
 export const duplicateMeal = {
   error: "duplicate_meal",
   message: "That Meal is already in the Meal Bank.",

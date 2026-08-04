@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { failure } from "../shared/api";
 import type { Household } from "../shared/household";
 import { readSlug, type Slug } from "../shared/slug";
-import { createHousehold, fetchHousehold } from "./api";
+import { createHousehold, fetchHousehold, messageFor } from "./api";
 import { AppShell } from "./AppShell";
 import { remembered } from "./remembered";
 import { alertStyle, fieldStyle, loudButtonStyle } from "./styles";
@@ -26,7 +26,7 @@ type Creation =
   | { state: "idle" }
   | { state: "creating" }
   | { state: "created"; household: Household }
-  | { state: "failed" };
+  | { state: "failed"; problem: string };
 
 type Copying = "untouched" | "copied" | "refused";
 
@@ -157,8 +157,11 @@ export const LandingPage = ({ onGo }: LandingPageProps) => {
     setCreation({ state: "creating" });
     try {
       setCreation({ state: "created", household: await createHousehold() });
-    } catch {
-      setCreation({ state: "failed" });
+    } catch (error) {
+      setCreation({
+        state: "failed",
+        problem: messageFor(error),
+      });
     }
   };
 
@@ -194,7 +197,7 @@ export const LandingPage = ({ onGo }: LandingPageProps) => {
 
         {creation.state === "failed" && (
           <p role="alert" className="text-rose-300">
-            {failure.message}
+            {creation.problem}
           </p>
         )}
 
