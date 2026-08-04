@@ -7,7 +7,7 @@
     "dev:worker": "npm run db:migrate:local && wrangler dev",
     "db:migrate:local": "wrangler d1 migrations apply wheel-of-meals --local",
     "build": "vite build",
-    "preview": "npm run build && wrangler dev",
+    "preview": "npm run build && npm run db:migrate:local && wrangler dev",
     "deploy": "npm run build && wrangler d1 migrations apply wheel-of-meals --remote && wrangler deploy",
     "typecheck": "wrangler types && tsc --build --force",
     "lint": "eslint . && prettier --check .",
