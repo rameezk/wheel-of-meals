@@ -1,51 +1,42 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { aHousehold, aSlug, answerWith } from "./test-fixtures";
 
-const respondWith = (body: unknown, status = 200) =>
-  vi.spyOn(globalThis, "fetch").mockResolvedValue(
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json" },
-    }),
-  );
+const visit = (path: string) => window.history.pushState({}, "", path);
 
 afterEach(() => {
   vi.restoreAllMocks();
+  visit("/");
 });
 
-describe("the landing page", () => {
-  it("names the app", () => {
-    respondWith({ status: "ok" });
+describe("the app", () => {
+  it("offers the create button at the root", () => {
+    visit("/");
 
     render(<App />);
 
     expect(
-      screen.getByRole("heading", { name: /wheel of meals/i }),
+      screen.getByRole("button", { name: /create a household/i }),
     ).toBeInTheDocument();
   });
 
-  it("reports the API as reachable once it answers", async () => {
-    respondWith({ status: "ok" });
+  it("opens the Household a Slug URL points at", async () => {
+    answerWith(aHousehold);
 
+    visit(`/${aSlug}`);
     render(<App />);
 
-    expect(await screen.findByText(/api is awake/i)).toBeInTheDocument();
+    expect(await screen.findByText(aSlug)).toBeInTheDocument();
   });
 
-  it("reports the API as unreachable when it answers with something unexpected", async () => {
-    respondWith({ status: "who knows" });
+  it("falls back to the start for a path that is not a Slug", () => {
+    visit("/nonsense");
 
     render(<App />);
 
-    expect(await screen.findByText(/api is unreachable/i)).toBeInTheDocument();
-  });
-
-  it("reports the API as unreachable when it fails", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
-
-    render(<App />);
-
-    expect(await screen.findByText(/api is unreachable/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /create a household/i }),
+    ).toBeInTheDocument();
   });
 });
