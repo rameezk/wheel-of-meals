@@ -4,6 +4,7 @@ import type { CookingDay, Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
+import { MealBank } from "./MealBank";
 
 type Lookup =
   | { state: "looking" }
@@ -90,16 +91,13 @@ export const HouseholdPage = ({ slug }: { slug: Slug }) => {
           <CookingDays days={household.cookingDays} />
         </div>
 
-        <div className="flex flex-col items-center gap-3">
-          <h2 className="text-sm tracking-wide text-stone-500 uppercase">
-            Meal Bank
-          </h2>
-          <p className="text-stone-400">
-            {household.mealBank.length === 0
-              ? "No meals yet."
-              : `${household.mealBank.length} meals.`}
-          </p>
-        </div>
+        <MealBank
+          slug={household.slug}
+          meals={household.mealBank}
+          onChange={(mealBank) =>
+            setLookup({ state: "found", household: { ...household, mealBank } })
+          }
+        />
       </div>
     </AppShell>
   );
