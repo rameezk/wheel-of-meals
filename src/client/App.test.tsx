@@ -56,7 +56,7 @@ describe("the app", () => {
     window.history.back();
 
     expect(
-      await screen.findByRole("heading", { name: "Cooking Days" }),
+      await screen.findByRole("heading", { name: "Meal Bank" }),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/${aSlug}`);
   });
@@ -94,7 +94,7 @@ describe("the app", () => {
     await userEvent.click(screen.getByRole("button", { name: "Open" }));
 
     expect(
-      await screen.findByRole("heading", { name: "Cooking Days" }),
+      await screen.findByRole("heading", { name: "Meal Bank" }),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/${aSlug}`);
     expect(remembered()).toEqual({ slug: aSlug, name: null });

@@ -10,7 +10,12 @@ import {
 } from "../shared/household";
 import { Refusal, updateHousehold } from "./api";
 import { dayLabels } from "./days";
-import { alertStyle, fieldStyle, quietButtonStyle } from "./styles";
+import {
+  alertStyle,
+  fieldStyle,
+  loudButtonStyle,
+  quietButtonStyle,
+} from "./styles";
 
 const sameDays = (one: CookingDay[], other: CookingDay[]) =>
   one.length === other.length && one.every((day) => other.includes(day));
@@ -132,7 +137,7 @@ export const HouseholdSettings = ({
         <button
           type="submit"
           disabled={saving || days.length === 0}
-          className="flex min-h-11 items-center rounded-full bg-emerald-500 px-6 text-sm font-medium text-stone-950 transition hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:opacity-50"
+          className={`${loudButtonStyle} flex min-h-11 items-center px-6 text-sm font-medium disabled:opacity-50`}
         >
           Save
         </button>

@@ -40,16 +40,12 @@ test("creating a Household hands over a Slug that opens it again", async ({
   await openIt.click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(
-    page.getByRole("heading", { name: "Cooking Days" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
   await expect(page.getByText("Sunday", { exact: true })).toBeVisible();
   await expect(page.getByText("No Meals yet.")).toBeVisible();
 
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Cooking Days" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
 });
 
 test("a Household names itself and picks the nights it cooks", async ({
@@ -95,9 +91,7 @@ test("the settings close on the browser's own Back button", async ({
   await page.goBack();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(
-    page.getByRole("heading", { name: "Cooking Days" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
 });
 
 test("the settings open straight from their own link", async ({ page }) => {
@@ -123,9 +117,7 @@ test("the landing page offers the last Household opened, and waits to be asked",
   page,
 }) => {
   const href = await openHousehold(page);
-  await expect(
-    page.getByRole("heading", { name: "Cooking Days" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
 
   await page.goto("/");
 
@@ -137,9 +129,7 @@ test("the landing page offers the last Household opened, and waits to be asked",
   await page.getByRole("button", { name: `Open ${href.slice(1)}` }).click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(
-    page.getByRole("heading", { name: "Cooking Days" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
 });
 
 test("four words typed in open the Household on a device that has never seen it", async ({
@@ -155,9 +145,7 @@ test("four words typed in open the Household on a device that has never seen it"
   await page.getByRole("button", { name: "Open", exact: true }).click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(
-    page.getByRole("heading", { name: "Cooking Days" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
 
   await page.goto("/");
   await expect(
