@@ -14,7 +14,12 @@ export const cookingDaySchema = z.enum([
 
 export type CookingDay = z.infer<typeof cookingDaySchema>;
 
-export const cookingDaysSchema = z.array(cookingDaySchema).min(1);
+const weekOrder = cookingDaySchema.options;
+
+export const cookingDaysSchema = z
+  .array(cookingDaySchema)
+  .min(1, "A Household cooks on at least one day.")
+  .transform((days) => weekOrder.filter((day) => days.includes(day)));
 
 export const defaultCookingDays: CookingDay[] = [
   "sunday",
@@ -33,3 +38,30 @@ export const householdSchema = z.object({
 });
 
 export type Household = z.infer<typeof householdSchema>;
+
+export const householdNameMaxLength = 60;
+
+const nameSchema = z
+  .string()
+  .transform((value) => value.trim().replace(/\s+/g, " "))
+  .pipe(
+    z
+      .string()
+      .max(
+        householdNameMaxLength,
+        `A Household name cannot be longer than ${householdNameMaxLength} characters.`,
+      ),
+  )
+  .transform((value) => (value.length === 0 ? null : value));
+
+export const updateHouseholdSchema = z
+  .object({
+    name: nameSchema.nullish(),
+    cookingDays: cookingDaysSchema.optional(),
+  })
+  .refine(
+    ({ name, cookingDays }) => name !== undefined || cookingDays !== undefined,
+    "An edit has to change the name or the Cooking Days.",
+  );
+
+export type UpdateHousehold = z.infer<typeof updateHouseholdSchema>;

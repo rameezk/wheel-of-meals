@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { failure } from "../shared/api";
-import { householdSchema, type Household } from "../shared/household";
+import {
+  householdSchema,
+  type Household,
+  type UpdateHousehold,
+} from "../shared/household";
 import { mealSchema, type Meal } from "../shared/meal";
 import type { Slug } from "../shared/slug";
 
@@ -34,6 +38,18 @@ export const fetchHousehold = async (
   const response = await fetch(`/api/households/${slug}`, { signal });
   if (response.status === 404) return null;
   if (!response.ok) throw new Error(`Lookup failed with ${response.status}`);
+  return householdSchema.parse(await response.json());
+};
+
+export const updateHousehold = async (
+  slug: Slug,
+  changes: UpdateHousehold,
+): Promise<Household> => {
+  const response = await fetch(
+    `/api/households/${slug}`,
+    sending("PATCH", changes),
+  );
+  if (!response.ok) return refuse(response);
   return householdSchema.parse(await response.json());
 };
 
