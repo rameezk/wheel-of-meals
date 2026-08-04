@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { collapseWhitespace } from "./text";
 
 export const mealNameMaxLength = 100;
 export const mealDescriptionMaxLength = 500;
@@ -11,8 +12,6 @@ export const mealSchema = z.object({
 });
 
 export type Meal = z.infer<typeof mealSchema>;
-
-const collapseWhitespace = (value: string) => value.trim().replace(/\s+/g, " ");
 
 const nameSchema = z
   .string()

@@ -15,6 +15,9 @@ import {
   type Meal,
 } from "../shared/meal";
 import { slugSchema, type Slug } from "../shared/slug";
+import { firstIssue, readBody } from "./http";
+
+const mealFallback = "That Meal cannot be saved as it is.";
 
 const rowSchema = z.object({
   id: z.string(),
@@ -93,9 +96,6 @@ const removeMeal = (db: D1Database, slug: Slug, id: string) =>
     .bind(id, slug)
     .first();
 
-const firstIssue = (error: z.ZodError) =>
-  error.issues[0]?.message ?? "That Meal cannot be saved as it is.";
-
 const isDuplicateName = (error: unknown) =>
   error instanceof Error && /UNIQUE constraint failed/i.test(error.message);
 
@@ -107,14 +107,6 @@ const householdExists = async (db: D1Database, slug: Slug) =>
       .first(),
   );
 
-const readBody = async (request: Request): Promise<unknown> => {
-  try {
-    return await request.json();
-  } catch {
-    return null;
-  }
-};
-
 export const meals = new Hono<{ Bindings: Env }>();
 
 meals.post("/api/households/:slug/meals", async (c) => {
@@ -124,7 +116,8 @@ meals.post("/api/households/:slug/meals", async (c) => {
     return c.json(notFound, 404);
 
   const meal = addMealSchema.safeParse(await readBody(c.req.raw));
-  if (!meal.success) return c.json(invalidMeal(firstIssue(meal.error)), 400);
+  if (!meal.success)
+    return c.json(invalidMeal(firstIssue(meal.error, mealFallback)), 400);
 
   try {
     const row = await insertMeal(c.env.DB, slug.data, meal.data);
@@ -142,7 +135,7 @@ meals.patch("/api/households/:slug/meals/:id", async (c) => {
 
   const changes = editMealSchema.safeParse(await readBody(c.req.raw));
   if (!changes.success)
-    return c.json(invalidMeal(firstIssue(changes.error)), 400);
+    return c.json(invalidMeal(firstIssue(changes.error, mealFallback)), 400);
 
   try {
     const row = await updateMeal(

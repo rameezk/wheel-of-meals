@@ -1,4 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+const toggleDay = (page: Page, day: string) =>
+  page.getByText(day, { exact: true }).click();
 
 test("creating a Household hands over a Slug that opens it again", async ({
   page,
@@ -20,12 +23,103 @@ test("creating a Household hands over a Slug that opens it again", async ({
   await openIt.click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(page.getByText("Cooking Days")).toBeVisible();
-  await expect(page.getByText("Sunday")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Cooking Days" }),
+  ).toBeVisible();
+  await expect(page.getByText("Sunday", { exact: true })).toBeVisible();
   await expect(page.getByText("No Meals yet.")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText("Cooking Days")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Cooking Days" }),
+  ).toBeVisible();
+});
+
+test("a Household names itself and picks the nights it cooks", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create a Household" }).click();
+
+  const openIt = page.getByRole("link", { name: "Open my Household" });
+  const href = String(await openIt.getAttribute("href"));
+  await openIt.click();
+
+  await expect(
+    page.getByRole("heading", { name: href.slice(1) }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page).toHaveURL(new RegExp(`${href}/settings$`));
+  await page.getByLabel("Household name (optional)").fill("The Khans");
+  await toggleDay(page, "Sunday");
+  await toggleDay(page, "Friday");
+  await expect(
+    page.getByRole("checkbox", { name: "Sunday" }),
+  ).not.toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Friday" })).toBeChecked();
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await expect(page.getByRole("heading", { name: "The Khans" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "The Khans" })).toBeVisible();
+  await expect(page.getByText(href.slice(1))).toBeVisible();
+  await expect(page.getByText("Friday", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("listitem").filter({ hasText: "Sunday" }),
+  ).toContainText("not cooking");
+});
+
+test("the settings close on the browser's own Back button", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create a Household" }).click();
+  const href = String(
+    await page
+      .getByRole("link", { name: "Open my Household" })
+      .getAttribute("href"),
+  );
+  await page.getByRole("link", { name: "Open my Household" }).click();
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel("Household name (optional)")).toBeVisible();
+
+  await page.goBack();
+
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
+  await expect(
+    page.getByRole("heading", { name: "Cooking Days" }),
+  ).toBeVisible();
+});
+
+test("the settings open straight from their own link", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create a Household" }).click();
+  const href = String(
+    await page
+      .getByRole("link", { name: "Open my Household" })
+      .getAttribute("href"),
+  );
+
+  await page.goto(`${href}/settings`);
+
+  await expect(page.getByLabel("Household name (optional)")).toBeVisible();
+});
+
+test("a Household cannot stop cooking altogether", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create a Household" }).click();
+  await page.getByRole("link", { name: "Open my Household" }).click();
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  for (const day of ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"])
+    await toggleDay(page, day);
+
+  await expect(page.getByRole("button", { name: "Save" })).toBeDisabled();
+  await expect(page.getByRole("alert")).toContainText("at least one day");
 });
 
 test("a Slug nobody was given opens nothing", async ({ page }) => {

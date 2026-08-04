@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { failure, notFound } from "../shared/api";
-import type { CookingDay, Household } from "../shared/household";
+import {
+  daysOfTheWeek,
+  type CookingDay,
+  type Household,
+} from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
+import { dayLabels } from "./days";
+import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
+import { quietButtonStyle } from "./styles";
 
 type Lookup =
   | { state: "looking" }
@@ -12,30 +19,34 @@ type Lookup =
   | { state: "missing" }
   | { state: "failed" };
 
-const dayLabels: Record<CookingDay, string> = {
-  sunday: "Sunday",
-  monday: "Monday",
-  tuesday: "Tuesday",
-  wednesday: "Wednesday",
-  thursday: "Thursday",
-  friday: "Friday",
-  saturday: "Saturday",
-};
-
 const CookingDays = ({ days }: { days: CookingDay[] }) => (
   <ul className="flex flex-wrap justify-center gap-2">
-    {days.map((day) => (
-      <li
-        key={day}
-        className="rounded-full bg-emerald-500/15 px-4 py-1.5 text-sm font-medium text-emerald-300"
-      >
-        {dayLabels[day]}
-      </li>
-    ))}
+    {daysOfTheWeek.map((day) => {
+      const cooking = days.includes(day);
+      return (
+        <li
+          key={day}
+          className={`rounded-full px-4 py-1.5 text-sm font-medium ${
+            cooking
+              ? "bg-emerald-500/15 text-emerald-300"
+              : "bg-stone-900 text-stone-400"
+          }`}
+        >
+          {dayLabels[day]}
+          {!cooking && <span className="sr-only"> - not cooking</span>}
+        </li>
+      );
+    })}
   </ul>
 );
 
-export const HouseholdPage = ({ slug }: { slug: Slug }) => {
+type HouseholdPageProps = {
+  slug: Slug;
+  settings: boolean;
+  onGo: (path: string) => void;
+};
+
+export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
   const [lookup, setLookup] = useState<Lookup>({ state: "looking" });
 
   useEffect(() => {
@@ -76,28 +87,53 @@ export const HouseholdPage = ({ slug }: { slug: Slug }) => {
   }
 
   const { household } = lookup;
+  const show = (household: Household) =>
+    setLookup({ state: "found", household });
 
   return (
     <AppShell>
       <div className="flex w-full max-w-md flex-col items-center gap-6">
-        <p className="rounded-full border border-stone-800 bg-stone-900 px-5 py-2 font-medium break-words text-emerald-300">
-          {household.slug}
-        </p>
-
-        <div className="flex flex-col items-center gap-3">
-          <h2 className="text-sm tracking-wide text-stone-500 uppercase">
-            Cooking Days
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h2 className="text-2xl font-semibold break-words text-emerald-300">
+            {household.name ?? household.slug}
           </h2>
-          <CookingDays days={household.cookingDays} />
+
+          {household.name && (
+            <p className="text-sm break-words text-stone-400">
+              {household.slug}
+            </p>
+          )}
         </div>
 
-        <MealBank
-          slug={household.slug}
-          meals={household.mealBank}
-          onChange={(mealBank) =>
-            setLookup({ state: "found", household: { ...household, mealBank } })
-          }
-        />
+        {settings ? (
+          <HouseholdSettings
+            household={household}
+            onChange={show}
+            onDone={() => onGo(`/${household.slug}`)}
+          />
+        ) : (
+          <>
+            <div className="flex flex-col items-center gap-3">
+              <h3 className="text-sm tracking-wide text-stone-500 uppercase">
+                Cooking Days
+              </h3>
+              <CookingDays days={household.cookingDays} />
+              <button
+                type="button"
+                onClick={() => onGo(`/${household.slug}/settings`)}
+                className={quietButtonStyle}
+              >
+                Settings
+              </button>
+            </div>
+
+            <MealBank
+              slug={household.slug}
+              meals={household.mealBank}
+              onChange={(mealBank) => show({ ...household, mealBank })}
+            />
+          </>
+        )}
       </div>
     </AppShell>
   );
