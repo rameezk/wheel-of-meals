@@ -1,8 +1,9 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HouseholdPage } from "./HouseholdPage";
 import { remember, remembered } from "./remembered";
-import { aHousehold, aSlug, answerWith } from "./test-fixtures";
+import { aHousehold, aMeal, aSlug, answerWith } from "./test-fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -66,6 +67,22 @@ describe("a Household page", () => {
     render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
 
     expect(await screen.findByText(/no meals yet/i)).toBeInTheDocument();
+  });
+
+  it("spins a Week out of the Household's own Meal Bank", async () => {
+    answerWith({
+      ...aHousehold,
+      cookingDays: ["sunday"],
+      mealBank: [aMeal],
+    });
+
+    render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /spin/i }));
+
+    expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
+      aMeal.name,
+    );
   });
 
   it("becomes the remembered Household once it opens", async () => {

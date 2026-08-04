@@ -7,7 +7,12 @@ import {
 } from "../shared/meal";
 import type { Slug } from "../shared/slug";
 import { addMeal, deleteMeal, editMeal, Refusal, type MealDraft } from "./api";
-import { alertStyle, fieldStyle, quietButtonStyle } from "./styles";
+import {
+  alertStyle,
+  fieldStyle,
+  loudButtonStyle,
+  quietButtonStyle,
+} from "./styles";
 
 type MealBankProps = {
   slug: Slug;
@@ -91,7 +96,7 @@ const MealForm = ({
       <div className="flex gap-2">
         <button
           type="submit"
-          className="flex min-h-11 items-center rounded-full bg-emerald-500 px-5 text-sm font-medium text-stone-950 transition hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+          className={`${loudButtonStyle} flex min-h-11 items-center px-5 text-sm font-medium`}
         >
           Save
         </button>
@@ -156,9 +161,9 @@ export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
   return (
     <section className="flex w-full flex-col gap-5">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm tracking-wide text-stone-500 uppercase">
+        <h3 className="text-sm tracking-wide text-stone-500 uppercase">
           Meal Bank
-        </h2>
+        </h3>
         <p className="text-sm text-stone-400">
           {meals.length === 1 ? "1 Meal" : `${meals.length} Meals`}
         </p>
@@ -177,7 +182,7 @@ export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
         <button
           type="submit"
           disabled={working || !named(draft)}
-          className="rounded-full bg-emerald-500 px-6 py-3 font-medium text-stone-950 transition hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:opacity-50"
+          className={`${loudButtonStyle} px-6 py-3 font-medium disabled:opacity-50`}
         >
           Add
         </button>

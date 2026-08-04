@@ -1,45 +1,20 @@
 import { useEffect, useState } from "react";
 import { failure, notFound } from "../shared/api";
-import {
-  daysOfTheWeek,
-  type CookingDay,
-  type Household,
-} from "../shared/household";
+import { type Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
-import { dayLabels } from "./days";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { forget, remember } from "./remembered";
 import { quietButtonStyle } from "./styles";
+import { TheWeek } from "./Week";
 
 type Lookup =
   | { state: "looking" }
   | { state: "found"; household: Household }
   | { state: "missing" }
   | { state: "failed" };
-
-const CookingDays = ({ days }: { days: CookingDay[] }) => (
-  <ul className="flex flex-wrap justify-center gap-2">
-    {daysOfTheWeek.map((day) => {
-      const cooking = days.includes(day);
-      return (
-        <li
-          key={day}
-          className={`rounded-full px-4 py-1.5 text-sm font-medium ${
-            cooking
-              ? "bg-emerald-500/15 text-emerald-300"
-              : "bg-stone-900 text-stone-400"
-          }`}
-        >
-          {dayLabels[day]}
-          {!cooking && <span className="sr-only"> - not cooking</span>}
-        </li>
-      );
-    })}
-  </ul>
-);
 
 type HouseholdPageProps = {
   slug: Slug;
@@ -122,19 +97,18 @@ export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
           />
         ) : (
           <>
-            <div className="flex flex-col items-center gap-3">
-              <h3 className="text-sm tracking-wide text-stone-500 uppercase">
-                Cooking Days
-              </h3>
-              <CookingDays days={household.cookingDays} />
-              <button
-                type="button"
-                onClick={() => onGo(`/${household.slug}/settings`)}
-                className={quietButtonStyle}
-              >
-                Settings
-              </button>
-            </div>
+            <TheWeek
+              cookingDays={household.cookingDays}
+              mealBank={household.mealBank}
+            />
+
+            <button
+              type="button"
+              onClick={() => onGo(`/${household.slug}/settings`)}
+              className={quietButtonStyle}
+            >
+              Settings
+            </button>
 
             <MealBank
               slug={household.slug}

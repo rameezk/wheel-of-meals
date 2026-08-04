@@ -5,7 +5,7 @@ import { readSlug, type Slug } from "../shared/slug";
 import { createHousehold, fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
 import { remembered } from "./remembered";
-import { alertStyle, fieldStyle } from "./styles";
+import { alertStyle, fieldStyle, loudButtonStyle } from "./styles";
 
 const notFourWords = "That is not four words. Type all four.";
 
@@ -74,7 +74,7 @@ const SlugReveal = ({ slug }: { slug: Slug }) => {
         </button>
         <a
           href={`/${slug}`}
-          className="flex-1 rounded-full bg-emerald-500 px-6 py-3 text-center font-medium text-stone-950 transition hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+          className={`${loudButtonStyle} flex-1 px-6 py-3 text-center font-medium`}
         >
           Open my Household
         </a>
