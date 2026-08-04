@@ -1,12 +1,19 @@
 import { useState, type FormEvent } from "react";
 import { failure } from "../shared/api";
 import {
+  daysOfTheWeek,
   householdNameMaxLength,
+  noCookingDays,
   type CookingDay,
   type Household,
+  type UpdateHousehold,
 } from "../shared/household";
 import { Refusal, updateHousehold } from "./api";
-import { dayLabels, week } from "./days";
+import { dayLabels } from "./days";
+import { alertStyle, fieldStyle, quietButtonStyle } from "./styles";
+
+const sameDays = (one: CookingDay[], other: CookingDay[]) =>
+  one.length === other.length && one.every((day) => other.includes(day));
 
 type HouseholdSettingsProps = {
   household: Household;
@@ -28,22 +35,31 @@ export const HouseholdSettings = ({
     setDays((chosen) =>
       chosen.includes(day)
         ? chosen.filter((held) => held !== day)
-        : week.filter((held) => held === day || chosen.includes(held)),
+        : daysOfTheWeek.filter((held) => held === day || chosen.includes(held)),
     );
+
+  const changes = (): UpdateHousehold => {
+    const wanted = name.trim().length === 0 ? null : name.trim();
+    return {
+      ...(wanted === household.name ? {} : { name: wanted }),
+      ...(sameDays(days, household.cookingDays) ? {} : { cookingDays: days }),
+    };
+  };
 
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (days.length === 0) return;
 
+    const wanted = changes();
+    if (Object.keys(wanted).length === 0) {
+      onDone();
+      return;
+    }
+
     setSaving(true);
     setProblem(null);
     try {
-      onChange(
-        await updateHousehold(household.slug, {
-          name: name.trim().length === 0 ? null : name.trim(),
-          cookingDays: days,
-        }),
-      );
+      onChange(await updateHousehold(household.slug, wanted));
       onDone();
     } catch (error) {
       setProblem(error instanceof Refusal ? error.message : failure.message);
@@ -68,7 +84,7 @@ export const HouseholdSettings = ({
           onChange={(event) => setName(event.target.value)}
           placeholder={household.slug}
           maxLength={householdNameMaxLength}
-          className="w-full rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-stone-100 placeholder:text-stone-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+          className={fieldStyle}
         />
       </label>
 
@@ -77,7 +93,7 @@ export const HouseholdSettings = ({
           Cooking Days
         </legend>
         <div className="flex flex-wrap gap-2">
-          {week.map((day) => {
+          {daysOfTheWeek.map((day) => {
             const cooking = days.includes(day);
             return (
               <label
@@ -101,16 +117,13 @@ export const HouseholdSettings = ({
         </div>
         {days.length === 0 && (
           <p role="alert" className="text-sm text-amber-200">
-            A Household cooks on at least one day.
+            {noCookingDays}
           </p>
         )}
       </fieldset>
 
       {problem && (
-        <p
-          role="alert"
-          className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-rose-200"
-        >
+        <p role="alert" className={alertStyle}>
           {problem}
         </p>
       )}
@@ -123,11 +136,7 @@ export const HouseholdSettings = ({
         >
           Save
         </button>
-        <button
-          type="button"
-          onClick={onDone}
-          className="flex min-h-11 items-center rounded-full border border-stone-700 px-4 text-sm text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
-        >
+        <button type="button" onClick={onDone} className={quietButtonStyle}>
           Cancel
         </button>
       </div>

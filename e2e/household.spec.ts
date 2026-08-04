@@ -50,6 +50,7 @@ test("a Household names itself and picks the nights it cooks", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page).toHaveURL(new RegExp(`${href}/settings$`));
   await page.getByLabel("Household name (optional)").fill("The Khans");
   await toggleDay(page, "Sunday");
   await toggleDay(page, "Friday");
@@ -60,6 +61,7 @@ test("a Household names itself and picks the nights it cooks", async ({
   await page.getByRole("button", { name: "Save" }).click();
 
   await expect(page.getByRole("heading", { name: "The Khans" })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "The Khans" })).toBeVisible();
@@ -68,6 +70,43 @@ test("a Household names itself and picks the nights it cooks", async ({
   await expect(
     page.getByRole("listitem").filter({ hasText: "Sunday" }),
   ).toContainText("not cooking");
+});
+
+test("the settings close on the browser's own Back button", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create a Household" }).click();
+  const href = String(
+    await page
+      .getByRole("link", { name: "Open my Household" })
+      .getAttribute("href"),
+  );
+  await page.getByRole("link", { name: "Open my Household" }).click();
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel("Household name (optional)")).toBeVisible();
+
+  await page.goBack();
+
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
+  await expect(
+    page.getByRole("heading", { name: "Cooking Days" }),
+  ).toBeVisible();
+});
+
+test("the settings open straight from their own link", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Create a Household" }).click();
+  const href = String(
+    await page
+      .getByRole("link", { name: "Open my Household" })
+      .getAttribute("href"),
+  );
+
+  await page.goto(`${href}/settings`);
+
+  await expect(page.getByLabel("Household name (optional)")).toBeVisible();
 });
 
 test("a Household cannot stop cooking altogether", async ({ page }) => {

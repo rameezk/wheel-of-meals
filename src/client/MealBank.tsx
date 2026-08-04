@@ -7,6 +7,7 @@ import {
 } from "../shared/meal";
 import type { Slug } from "../shared/slug";
 import { addMeal, deleteMeal, editMeal, Refusal, type MealDraft } from "./api";
+import { alertStyle, fieldStyle, quietButtonStyle } from "./styles";
 
 type MealBankProps = {
   slug: Slug;
@@ -16,12 +17,6 @@ type MealBankProps = {
 
 const byName = (one: Meal, other: Meal) =>
   one.name.localeCompare(other.name, undefined, { sensitivity: "base" });
-
-const fieldStyle =
-  "w-full rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-stone-100 placeholder:text-stone-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
-
-const quietButtonStyle =
-  "flex min-h-11 items-center rounded-full border border-stone-700 px-4 text-sm text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
 
 const MealFields = ({
   nameLabel,
@@ -189,10 +184,7 @@ export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
       </form>
 
       {problem && (
-        <p
-          role="alert"
-          className="rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-rose-200"
-        >
+        <p role="alert" className={alertStyle}>
           {problem}
         </p>
       )}

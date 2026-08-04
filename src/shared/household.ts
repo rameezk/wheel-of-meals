@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { mealSchema } from "./meal";
+import { collapseWhitespace } from "./text";
 import { slugSchema } from "./slug";
 
 export const cookingDaySchema = z.enum([
@@ -14,12 +15,14 @@ export const cookingDaySchema = z.enum([
 
 export type CookingDay = z.infer<typeof cookingDaySchema>;
 
-const weekOrder = cookingDaySchema.options;
+export const daysOfTheWeek = cookingDaySchema.options;
+
+export const noCookingDays = "A Household cooks on at least one day.";
 
 export const cookingDaysSchema = z
   .array(cookingDaySchema)
-  .min(1, "A Household cooks on at least one day.")
-  .transform((days) => weekOrder.filter((day) => days.includes(day)));
+  .min(1, noCookingDays)
+  .transform((days) => daysOfTheWeek.filter((day) => days.includes(day)));
 
 export const defaultCookingDays: CookingDay[] = [
   "sunday",
@@ -43,7 +46,7 @@ export const householdNameMaxLength = 60;
 
 const nameSchema = z
   .string()
-  .transform((value) => value.trim().replace(/\s+/g, " "))
+  .transform(collapseWhitespace)
   .pipe(
     z
       .string()

@@ -1,6 +1,4 @@
-import { cookingDaySchema, type CookingDay } from "../shared/household";
-
-export const week = cookingDaySchema.options;
+import type { CookingDay } from "../shared/household";
 
 export const dayLabels: Record<CookingDay, string> = {
   sunday: "Sunday",

@@ -24,8 +24,8 @@ const showSettings = (
 const sentBody = () => {
   const body = vi.mocked(globalThis.fetch).mock.calls[0]?.[1]?.body;
   return JSON.parse(typeof body === "string" ? body : "{}") as {
-    name: string | null;
-    cookingDays: CookingDay[];
+    name?: string | null;
+    cookingDays?: CookingDay[];
   };
 };
 
@@ -47,10 +47,7 @@ describe("Household settings", () => {
     const [url, options] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
     expect(url).toBe(`/api/households/${aSlug}`);
     expect(options?.method).toBe("PATCH");
-    expect(sentBody()).toEqual({
-      name: "The Khans",
-      cookingDays: aHousehold.cookingDays,
-    });
+    expect(sentBody()).toEqual({ name: "The Khans" });
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ name: "The Khans" }),
     );
@@ -68,6 +65,28 @@ describe("Household settings", () => {
     showSettings();
 
     expect(screen.getAllByRole("checkbox")).toHaveLength(7);
+  });
+
+  it("sends only what changed, so a partner's edit is not overwritten", async () => {
+    answerInTurn({ body: { ...aHousehold, cookingDays: ["monday"] } });
+    showSettings({ ...aHousehold, name: "The Khans" });
+
+    await userEvent.click(screen.getByRole("checkbox", { name: "Friday" }));
+    await pressSave();
+
+    expect(sentBody()).toEqual({
+      cookingDays: [...aHousehold.cookingDays, "friday"],
+    });
+  });
+
+  it("sends nothing at all when nothing was changed", async () => {
+    answerInTurn({ body: aHousehold });
+    const { onDone } = showSettings();
+
+    await pressSave();
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalled();
   });
 
   it("saves any subset of the seven days, in week order", async () => {

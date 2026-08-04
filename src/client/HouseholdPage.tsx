@@ -1,12 +1,17 @@
 import { useEffect, useState } from "react";
 import { failure, notFound } from "../shared/api";
-import type { CookingDay, Household } from "../shared/household";
+import {
+  daysOfTheWeek,
+  type CookingDay,
+  type Household,
+} from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
-import { dayLabels, week } from "./days";
+import { dayLabels } from "./days";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
+import { quietButtonStyle } from "./styles";
 
 type Lookup =
   | { state: "looking" }
@@ -16,7 +21,7 @@ type Lookup =
 
 const CookingDays = ({ days }: { days: CookingDay[] }) => (
   <ul className="flex flex-wrap justify-center gap-2">
-    {week.map((day) => {
+    {daysOfTheWeek.map((day) => {
       const cooking = days.includes(day);
       return (
         <li
@@ -35,9 +40,14 @@ const CookingDays = ({ days }: { days: CookingDay[] }) => (
   </ul>
 );
 
-export const HouseholdPage = ({ slug }: { slug: Slug }) => {
+type HouseholdPageProps = {
+  slug: Slug;
+  settings: boolean;
+  onGo: (path: string) => void;
+};
+
+export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
   const [lookup, setLookup] = useState<Lookup>({ state: "looking" });
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -95,11 +105,11 @@ export const HouseholdPage = ({ slug }: { slug: Slug }) => {
           )}
         </div>
 
-        {settingsOpen ? (
+        {settings ? (
           <HouseholdSettings
             household={household}
             onChange={show}
-            onDone={() => setSettingsOpen(false)}
+            onDone={() => onGo(`/${household.slug}`)}
           />
         ) : (
           <>
@@ -110,8 +120,8 @@ export const HouseholdPage = ({ slug }: { slug: Slug }) => {
               <CookingDays days={household.cookingDays} />
               <button
                 type="button"
-                onClick={() => setSettingsOpen(true)}
-                className="flex min-h-11 items-center rounded-full border border-stone-700 px-4 text-sm text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+                onClick={() => onGo(`/${household.slug}/settings`)}
+                className={quietButtonStyle}
               >
                 Settings
               </button>
