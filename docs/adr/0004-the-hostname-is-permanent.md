@@ -25,7 +25,10 @@ anyone holding a link.
 
 ## Consequences
 
-The zone must stay on Cloudflare for the custom domain to keep working.
+The zone must stay on Cloudflare for the custom domain to keep working, and the
+hostname must sit on a part of that zone Cloudflare is actually authoritative
+for. A zone hosted at Cloudflare is not enough on its own. ADR-0005 records the
+delegation this constraint came from.
 
 If the hostname ever must change, the old one has to keep serving redirects
 indefinitely rather than being retired.
