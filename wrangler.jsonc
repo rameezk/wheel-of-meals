@@ -14,7 +14,7 @@
   },
   "routes": [
     {
-      "pattern": "wheel-of-meals.app.rameezkhan.dev",
+      "pattern": "wheel-of-meals.rameezkhan.dev",
       "custom_domain": true,
     },
   ],

@@ -2,7 +2,7 @@
 
 > Randomise your meals for the week
 
-Live at [wheel-of-meals.app.rameezkhan.dev](https://wheel-of-meals.app.rameezkhan.dev).
+Live at [wheel-of-meals.rameezkhan.dev](https://wheel-of-meals.rameezkhan.dev).
 
 A Vite + React SPA and a Hono API, served by a single Cloudflare Worker. See
 [`docs/design.md`](docs/design.md) for the design, [`CONTEXT.md`](CONTEXT.md) for
@@ -33,8 +33,8 @@ at a deployed environment instead.
 
 ## Deploying
 
-GitHub Actions deploys `main` to production once every check passes. It needs two
-repository secrets:
+GitHub Actions deploys `main` to production once every check passes, then reruns
+the end-to-end suite against the live hostname. It needs two repository secrets:
 
 - `CLOUDFLARE_API_TOKEN` - scoped to edit Workers on the `rameezkhan.dev` account
 - `CLOUDFLARE_ACCOUNT_ID`

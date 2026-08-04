@@ -1,8 +1,16 @@
 # The hostname is permanent
 
-The app is served from `wheel-of-meals.app.rameezkhan.dev`, a Cloudflare Workers
+The app is served from `wheel-of-meals.rameezkhan.dev`, a Cloudflare Workers
 custom domain on the existing `rameezkhan.dev` zone. This is recorded because it
 is far harder to reverse than a hostname normally is.
+
+The hostname sits directly on the `rameezkhan.dev` zone rather than under
+`app.rameezkhan.dev`, which is NS-delegated away from Cloudflare and where a
+custom domain can never be served. This ADR originally recorded
+`wheel-of-meals.app.rameezkhan.dev`. That hostname never resolved and never
+served a request, so no link to it ever existed and the redirect obligation
+below was never incurred - correcting it here is safe in a way that changing a
+live hostname would not be.
 
 ADR-0002 makes the URL the only credential and provides no recovery path. A
 [[Household]] therefore exists only as long as someone holds a working link.
