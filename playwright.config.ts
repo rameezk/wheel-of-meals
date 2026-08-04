@@ -17,7 +17,7 @@ export default defineConfig({
   webServer: deployedUrl
     ? undefined
     : {
-        command: `npm run build && npx wrangler dev --port ${localPort}`,
+        command: `npm run build && npm run db:migrate:local && npx wrangler dev --port ${localPort}`,
         url: `http://localhost:${localPort}/api/health`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
