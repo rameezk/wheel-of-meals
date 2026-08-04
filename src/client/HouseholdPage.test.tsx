@@ -1,10 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HouseholdPage } from "./HouseholdPage";
+import { remember, remembered } from "./remembered";
 import { aHousehold, aSlug, answerWith } from "./test-fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 describe("a Household page", () => {
@@ -64,6 +66,41 @@ describe("a Household page", () => {
     render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
 
     expect(await screen.findByText(/no meals yet/i)).toBeInTheDocument();
+  });
+
+  it("becomes the remembered Household once it opens", async () => {
+    answerWith({ ...aHousehold, name: "The Khans" });
+
+    render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
+
+    await screen.findByRole("heading", { name: "The Khans" });
+    expect(remembered()).toEqual({ slug: aSlug, name: "The Khans" });
+  });
+
+  it("stops being the remembered Household once it opens nothing", async () => {
+    remember({ slug: aSlug, name: "The Khans" });
+    answerWith({ error: "not_found", message: "nope" }, 404);
+
+    render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
+
+    await screen.findByRole("alert");
+    expect(remembered()).toBeNull();
+  });
+
+  it("leaves the remembered Household alone when another Slug opens nothing", async () => {
+    remember({ slug: aSlug, name: "The Khans" });
+    answerWith({ error: "not_found", message: "nope" }, 404);
+
+    render(
+      <HouseholdPage
+        slug="toast-jam-butter-plate"
+        settings={false}
+        onGo={() => {}}
+      />,
+    );
+
+    await screen.findByRole("alert");
+    expect(remembered()).toEqual({ slug: aSlug, name: "The Khans" });
   });
 
   it("says plainly when the link opens nothing", async () => {

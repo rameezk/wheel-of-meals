@@ -135,6 +135,15 @@ export const slugSchema = z.string().regex(/^[a-z]+(-[a-z]+){3}$/, {
 
 export type Slug = z.infer<typeof slugSchema>;
 
+export const readSlug = (typed: string): Slug | null => {
+  const words = typed
+    .toLowerCase()
+    .split(/[\s-]+/)
+    .filter(Boolean);
+  const slug = slugSchema.safeParse(words.join("-"));
+  return slug.success ? slug.data : null;
+};
+
 const takeOne = (from: string[], random: () => number): string => {
   const index = Math.min(Math.floor(random() * from.length), from.length - 1);
   const [word] = from.splice(index, 1);

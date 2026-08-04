@@ -35,6 +35,6 @@ export const App = () => {
   return route ? (
     <HouseholdPage slug={route.slug} settings={route.settings} onGo={go} />
   ) : (
-    <LandingPage />
+    <LandingPage onGo={go} />
   );
 };
