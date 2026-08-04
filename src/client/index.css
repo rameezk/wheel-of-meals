@@ -8,3 +8,40 @@
 html {
   color-scheme: dark;
 }
+
+@keyframes wheel-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(var(--wheel-stops-at));
+  }
+}
+
+@keyframes card-flip {
+  from {
+    opacity: 0;
+    transform: perspective(600px) rotateX(-90deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0deg);
+  }
+}
+
+.wheel-spin {
+  animation: wheel-spin var(--wheel-spin-millis) cubic-bezier(0.16, 1, 0.3, 1)
+    forwards;
+}
+
+.card-flip {
+  transform-origin: top center;
+  animation: card-flip 420ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel-spin,
+  .card-flip {
+    animation: none;
+  }
+}

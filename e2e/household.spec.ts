@@ -20,6 +20,19 @@ const openHousehold = async (page: Page) => {
   return href;
 };
 
+const stockTheMealBank = async (page: Page, ...names: string[]) => {
+  for (const name of names) {
+    await page.getByLabel("Meal", { exact: true }).fill(name);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(
+      page.getByRole("listitem").filter({ hasText: name }),
+    ).toBeVisible();
+  }
+};
+
+const theDay = (page: Page, day: string) =>
+  page.getByRole("listitem").filter({ hasText: day });
+
 test("creating a Household hands over a Slug that opens it again", async ({
   page,
 }) => {
@@ -201,4 +214,40 @@ test("crawlers are locked out", async ({ page, request }) => {
   const robots = await request.get("/robots.txt");
   expect(robots.ok()).toBe(true);
   expect(await robots.text()).toContain("Disallow: /");
+});
+
+test("the wheel turns once, then the whole Week flips in", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openHousehold(page);
+  await stockTheMealBank(page, "Butter chicken", "Lasagne");
+
+  await page.getByRole("button", { name: "Spin the Week" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Skip the spin" }),
+  ).toBeVisible();
+  await expect(theDay(page, "Sunday")).not.toBeVisible();
+
+  await page.getByLabel("Meal", { exact: true }).fill("Ramen");
+  await expect(page.getByLabel("Meal", { exact: true })).toHaveValue("Ramen");
+
+  await page.getByRole("button", { name: "Skip the spin" }).click();
+
+  await expect(theDay(page, "Sunday")).toContainText(/Butter chicken|Lasagne/);
+  await expect(page.getByRole("button", { name: "Spin again" })).toBeVisible();
+});
+
+test("a device that asks for less motion gets the Week at once", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openHousehold(page);
+  await stockTheMealBank(page, "Butter chicken");
+
+  await page.getByRole("button", { name: "Spin the Week" }).click();
+
+  await expect(page.getByRole("button", { name: "Skip the spin" })).toHaveCount(
+    0,
+  );
+  await expect(theDay(page, "Sunday")).toContainText("Butter chicken");
 });
