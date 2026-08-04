@@ -78,7 +78,10 @@ describe("a Household page", () => {
 
     render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
 
-    await userEvent.click(await screen.findByRole("button", { name: /spin/i }));
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^spin/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /skip/i }));
 
     expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
       aMeal.name,
