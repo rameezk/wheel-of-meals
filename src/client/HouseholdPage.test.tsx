@@ -3,11 +3,19 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HouseholdPage } from "./HouseholdPage";
 import { remember, remembered } from "./remembered";
-import { aHousehold, aMeal, aSlug, answerWith } from "./test-fixtures";
+import {
+  aHousehold,
+  aMeal,
+  aSlug,
+  answerWith,
+  withAShareSheet,
+  withNoSharing,
+} from "./test-fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
+  withNoSharing();
 });
 
 describe("a Household page", () => {
@@ -86,6 +94,23 @@ describe("a Household page", () => {
     expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
       aMeal.name,
     );
+  });
+
+  it("shares the link a spouse needs to reach the same Meal Bank", async () => {
+    const share = withAShareSheet();
+    answerWith({ ...aHousehold, name: "The Khans" });
+
+    render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /share the household/i }),
+    );
+
+    expect(share).toHaveBeenCalledWith({
+      title: "The Khans",
+      url: `${location.origin}/${aSlug}`,
+    });
+    expect(screen.getByText(/shared/i)).toBeInTheDocument();
   });
 
   it("becomes the remembered Household once it opens", async () => {

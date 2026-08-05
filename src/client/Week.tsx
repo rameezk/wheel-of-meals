@@ -4,6 +4,8 @@ import type { Meal } from "../shared/meal";
 import { respin, spareMeals, spin, type Week } from "../shared/week";
 import { dayLabels } from "./days";
 import { flipStaggerMillis } from "./motion";
+import { ShareButton } from "./Share";
+import { weekAsText } from "./sharing";
 import { loudButtonStyle } from "./styles";
 import { TheWheel } from "./Wheel";
 
@@ -164,6 +166,14 @@ export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
             Every Meal is already in the Week. Add another to re-spin a day.
           </p>
         )
+      )}
+
+      {week && !landing && (
+        <ShareButton
+          key={weekAsText(week)}
+          label="Share the Week"
+          shareable={{ title: "The Week", text: weekAsText(week) }}
+        />
       )}
     </section>
   );

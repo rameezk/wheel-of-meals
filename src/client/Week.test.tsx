@@ -4,6 +4,7 @@ import type { CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import { dayLabels } from "./days";
 import { flipStaggerMillis, wheelSpinMillis } from "./motion";
+import { withAShareSheet, withNoSharing } from "./test-fixtures";
 import { TheWeek } from "./Week";
 
 beforeEach(() => vi.useFakeTimers());
@@ -11,6 +12,7 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  withNoSharing();
 });
 
 const cookingDays: CookingDay[] = [
@@ -116,6 +118,89 @@ describe("the Week", () => {
     spinIt();
     expect(screen.getByText("Lasagne")).toBeInTheDocument();
     expect(screen.queryByText("Butter chicken")).toBeNull();
+  });
+});
+
+describe("sharing the Week", () => {
+  const theShare = () => screen.queryByRole("button", { name: /share/i });
+
+  const shareIt = () =>
+    act(async () => {
+      click(theShare()!);
+      await Promise.resolve();
+    });
+
+  it("offers nothing to share until the Week has been spun", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    expect(theShare()).toBeNull();
+  });
+
+  it("holds the share back while the wheel is still turning", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    spinIt();
+    click(theSpin());
+
+    expect(theShare()).toBeNull();
+  });
+
+  it("shares the Week as plain text, a labelled line to a Cooking Day", async () => {
+    const shared = withAShareSheet();
+    render(<TheWeek cookingDays={["sunday"]} mealBank={aBankOf("Lasagne")} />);
+
+    spinIt();
+    await shareIt();
+
+    expect(shared).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Sunday: Lasagne" }),
+    );
+  });
+
+  it("gives an empty day of a thin Week a line of its own", async () => {
+    const shared = withAShareSheet();
+    render(
+      <TheWeek
+        cookingDays={["sunday", "monday"]}
+        mealBank={aBankOf("Lasagne")}
+      />,
+    );
+
+    spinIt();
+    await shareIt();
+
+    expect(shared).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Sunday: Lasagne\nMonday: -" }),
+    );
+  });
+
+  it("confirms visibly, so nobody pastes an empty clipboard", async () => {
+    withAShareSheet();
+    render(<TheWeek cookingDays={["sunday"]} mealBank={aBankOf("Lasagne")} />);
+
+    spinIt();
+    await shareIt();
+
+    expect(screen.getByText(/shared/i)).toBeInTheDocument();
+  });
+
+  it("drops a stale confirmation when the Week is spun again", async () => {
+    withAShareSheet();
+    vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.99);
+    render(
+      <TheWeek
+        cookingDays={["sunday"]}
+        mealBank={aBankOf("Butter chicken", "Lasagne")}
+      />,
+    );
+
+    spinIt();
+    await shareIt();
+    expect(screen.getByText(/shared/i)).toBeInTheDocument();
+
+    spinIt();
+
+    expect(screen.queryByText(/shared/i)).toBeNull();
   });
 });
 
