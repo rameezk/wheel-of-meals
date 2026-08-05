@@ -30,9 +30,29 @@ const times = (count: number, attempt: (n: number) => Promise<Response>) =>
 const refused = (responses: Response[]) =>
   responses.filter((response) => response.status === 429);
 
+const rateLimitPeriod = 60_000;
+
+const currentWindow = () => Math.floor(Date.now() / rateLimitPeriod);
+
+const withinOneWindow = async (
+  burst: (attempt: number) => Promise<Response[]>,
+) => {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const opened = currentWindow();
+    const responses = await burst(attempt);
+    if (currentWindow() === opened) return responses;
+  }
+
+  throw new Error(
+    "The rate limit window turned during all three bursts, so none of them was counted as one",
+  );
+};
+
 describe("rate limiting Household creation", () => {
   it("refuses a burst with a comprehensible 429", async () => {
-    const [first] = refused(await times(30, () => create("203.0.113.1")));
+    const [first] = refused(
+      await withinOneWindow(() => times(30, () => create("203.0.113.1"))),
+    );
 
     expect(first).toBeDefined();
     expect(await first?.json()).toEqual(tooManyRequests);
@@ -56,12 +76,14 @@ describe("rate limiting Meal Bank writes", () => {
     const slug = await createdSlug("203.0.113.5");
 
     const [first] = refused(
-      await times(150, (n) => addMeal("203.0.113.5", slug, `Meal ${n}`)),
+      await withinOneWindow((attempt) =>
+        times(150, (n) => addMeal("203.0.113.5", slug, `Meal ${attempt}-${n}`)),
+      ),
     );
 
     expect(first).toBeDefined();
     expect(await first?.json()).toEqual(tooManyRequests);
-  }, 30_000);
+  }, 60_000);
 
   it("allows far more of them than a Household ever adds by hand", async () => {
     const slug = await createdSlug("203.0.113.8");
@@ -83,15 +105,17 @@ describe("rate limiting Meal Bank writes", () => {
 
 describe("a write to a path that routes nowhere", () => {
   it("is still counted, so a crawler cannot probe for free", async () => {
-    const responses = await times(150, (n) =>
-      SELF.fetch(`${origin}/api/nothing/${n}`, {
-        method: "POST",
-        headers: from("203.0.113.9"),
-      }),
+    const responses = await withinOneWindow(() =>
+      times(150, (n) =>
+        SELF.fetch(`${origin}/api/nothing/${n}`, {
+          method: "POST",
+          headers: from("203.0.113.9"),
+        }),
+      ),
     );
 
     expect(refused(responses).length).toBeGreaterThan(0);
-  }, 30_000);
+  }, 60_000);
 });
 
 describe("a request that did not arrive through Cloudflare", () => {
