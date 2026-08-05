@@ -30,6 +30,27 @@ Randomise your meals for the week.
 - `main` is squash-only. See
   [ADR-0006](docs/adr/0006-main-is-squash-only-and-unversioned.md).
 
+## The AFK loop
+
+`scripts/afk.sh` works the ready queue unattended, one ticket at a time. See
+[ADR-0009](docs/adr/0009-the-afk-loop-runs-agents-up-to-the-human-gate.md).
+
+- A ticket is eligible only when it is labelled `ready-for-agent`, has no open
+  blocking issue, has no sub-issues, and is unassigned. Bugs go first, then the
+  lowest issue number.
+- A claim is an assignee. The loop assigns the ticket to itself before starting
+  and unassigns it if no pull request is opened, so anything assigned is being
+  worked on by somebody or something.
+- The script pushes the branch and opens the pull request. The session has no
+  GitHub credential and no route to GitHub - do not run `gh`, `git push`, or
+  try to open a pull request from inside one.
+- The script checks the branch first: one commit ahead of `origin/main`, clean
+  tree, conventional subject with no issue number, last line `Fixes #N`. A
+  branch that fails any of those is discarded and no pull request is opened.
+- Numbered files - decision records, migrations - are allocated to the session
+  in its prompt, because sibling branches in the same run are cut from the same
+  `main`. Use the number you were given rather than inferring the next one.
+
 ## Agent skills
 
 ### Issue tracker
