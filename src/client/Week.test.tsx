@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
+import { dayLabels } from "./days";
 import { flipStaggerMillis, wheelSpinMillis } from "./motion";
 import { asksForLessMotion } from "./test-setup";
 import { TheWeek } from "./Week";
@@ -22,11 +23,7 @@ const cookingDays: CookingDay[] = [
 ];
 
 const aBankOf = (...names: string[]): Meal[] =>
-  names.map((name, index) => ({
-    id: `meal-${index}`,
-    name,
-    description: null,
-  }));
+  names.map((name) => ({ id: `meal-${name}`, name, description: null }));
 
 const fiveMeals = aBankOf(
   "Butter chicken",
@@ -35,6 +32,8 @@ const fiveMeals = aBankOf(
   "Pad thai",
   "Shakshuka",
 );
+
+const sixMeals = [...fiveMeals, ...aBankOf("Ramen")];
 
 const theSpin = () => screen.getByRole("button", { name: /^spin/i });
 const theWheel = () => screen.queryByRole("button", { name: /skip/i });
@@ -216,5 +215,140 @@ describe("the reveal", () => {
     click(theSpin());
 
     expect(cardFor("Sunday")).not.toHaveClass("card-flip");
+  });
+});
+
+const respinFor = (day: string) =>
+  within(cardFor(day)).getByRole("button", { name: /re-spin/i });
+
+describe("a re-spin", () => {
+  it("offers no re-spin until the Week has been spun", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    expect(screen.queryByRole("button", { name: /re-spin/i })).toBeNull();
+  });
+
+  it("offers one on each Cooking Day, and none on the days off", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    spinIt();
+
+    for (const day of ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"])
+      expect(respinFor(day)).toBeInTheDocument();
+
+    for (const day of ["Friday", "Saturday"])
+      expect(
+        within(cardFor(day)).queryByRole("button", { name: /re-spin/i }),
+      ).toBeNull();
+  });
+
+  it("swaps in a spare Meal and leaves the other days alone", () => {
+    const others = ["Sunday", "Monday", "Wednesday", "Thursday"];
+    render(<TheWeek cookingDays={cookingDays} mealBank={sixMeals} />);
+
+    spinIt();
+    const before = others.map((day) => cardFor(day).textContent);
+    const swappedOut = cardFor("Tuesday").textContent;
+
+    click(respinFor("Tuesday"));
+
+    expect(cardFor("Tuesday").textContent).not.toBe(swappedOut);
+    expect(others.map((day) => cardFor(day).textContent)).toEqual(before);
+  });
+
+  it("never puts a Meal the Week already holds on the re-spun day", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={sixMeals} />);
+
+    spinIt();
+    click(respinFor("Tuesday"));
+
+    const drawn = cookingDays.map((day) => cardFor(dayLabels[day]).textContent);
+    expect(new Set(drawn).size).toBe(drawn.length);
+  });
+
+  it("disables the control when the Meal Bank offers no alternative", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    spinIt();
+
+    for (const day of ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"])
+      expect(respinFor(day)).toBeDisabled();
+  });
+
+  it("disables the control on an empty day of a thin Week", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={aBankOf("Lasagne")} />);
+
+    spinIt();
+
+    expect(respinFor("Thursday")).toBeDisabled();
+    expect(cardFor("Thursday")).toHaveTextContent(/no meal/i);
+  });
+
+  it("says why, rather than leaving a dead control unexplained", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    spinIt();
+
+    const why = screen.getByText(/every meal is already in the week/i);
+    expect(why).toBeInTheDocument();
+    expect(respinFor("Tuesday")).toHaveAccessibleDescription(why.textContent);
+  });
+
+  it("leaves a thin Week its one explanation, not two", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={aBankOf("Lasagne")} />);
+
+    spinIt();
+
+    expect(
+      screen.getByText(/ran out before the week did/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/every meal is already in the week/i)).toBeNull();
+  });
+
+  it("keeps quiet about spare Meals while the Bank has some", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={sixMeals} />);
+
+    spinIt();
+
+    expect(screen.queryByText(/every meal is already in the week/i)).toBeNull();
+    expect(respinFor("Tuesday")).toBeEnabled();
+  });
+
+  it("says the re-spun day out loud, and not the four that did not change", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={sixMeals} />);
+
+    spinIt();
+    expect(screen.getByRole("status")).toHaveTextContent(/Sunday: .*Thursday:/);
+
+    click(respinFor("Tuesday"));
+
+    const said = screen.getByRole("status").textContent;
+    expect(said).toMatch(/^Tuesday: /);
+    for (const day of ["Sunday", "Monday", "Wednesday", "Thursday"])
+      expect(said).not.toContain(day);
+  });
+
+  it("flips only the re-spun card, without waiting its turn in the stagger", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={sixMeals} />);
+
+    spinIt();
+    const monday = cardFor("Monday");
+    const tuesday = cardFor("Tuesday");
+
+    click(respinFor("Tuesday"));
+
+    expect(cardFor("Monday")).toBe(monday);
+    expect(cardFor("Tuesday")).not.toBe(tuesday);
+    expect(cardFor("Tuesday")).toHaveClass("card-flip");
+    expect(cardFor("Tuesday")).toHaveStyle({ animationDelay: "0ms" });
+  });
+
+  it("turns no wheel", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={sixMeals} />);
+
+    spinIt();
+    click(respinFor("Tuesday"));
+
+    expect(theWheel()).toBeNull();
   });
 });
