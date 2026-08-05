@@ -97,7 +97,9 @@ describe("the app", () => {
       await screen.findByRole("heading", { name: "Meal Bank" }),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/${aSlug}`);
-    expect(remembered()).toEqual({ slug: aSlug, name: null });
+    await vi.waitFor(() =>
+      expect(remembered()).toEqual({ slug: aSlug, name: null }),
+    );
   });
 
   it("falls back to the start for a path that is not a Slug", () => {
