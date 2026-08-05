@@ -102,8 +102,9 @@ full wheel.
 Five sequential wheel spins were rejected: a satisfying spin is 2-3 seconds, and
 this runs every Saturday for years. Delight that repeats becomes latency.
 
-The animation is skippable by tapping, and honours `prefers-reduced-motion` with
-an instant reveal.
+The animation is skippable by tapping. It plays for everyone otherwise:
+`prefers-reduced-motion` is deliberately not honoured, because the spin is the
+product rather than decoration around it (ADR-0008).
 
 Non-cooking days stay visible but greyed, so a week still looks like a week and
 it is obvious the app has not forgotten Friday.

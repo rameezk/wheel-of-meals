@@ -38,10 +38,3 @@ html {
   transform-origin: top center;
   animation: card-flip 420ms ease-out both;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .wheel-spin,
-  .card-flip {
-    animation: none;
-  }
-}

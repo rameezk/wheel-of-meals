@@ -237,7 +237,7 @@ test("the wheel turns once, then the whole Week flips in", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Spin again" })).toBeVisible();
 });
 
-test("a device that asks for less motion gets the Week at once", async ({
+test("a device that asks for less motion still gets the spin", async ({
   page,
 }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -246,8 +246,12 @@ test("a device that asks for less motion gets the Week at once", async ({
 
   await page.getByRole("button", { name: "Spin the Week" }).click();
 
-  await expect(page.getByRole("button", { name: "Skip the spin" })).toHaveCount(
-    0,
-  );
+  await expect(
+    page.getByRole("button", { name: "Skip the spin" }),
+  ).toBeVisible();
+  await expect(theDay(page, "Sunday")).not.toBeVisible();
+
+  await page.getByRole("button", { name: "Skip the spin" }).click();
+
   await expect(theDay(page, "Sunday")).toContainText("Butter chicken");
 });
