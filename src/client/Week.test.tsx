@@ -4,7 +4,6 @@ import type { CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import { dayLabels } from "./days";
 import { flipStaggerMillis, wheelSpinMillis } from "./motion";
-import { asksForLessMotion } from "./test-setup";
 import { TheWeek } from "./Week";
 
 beforeEach(() => vi.useFakeTimers());
@@ -168,17 +167,6 @@ describe("the wheel", () => {
 
     expect(screen.getByRole("status")).toHaveTextContent("Sunday: Lasagne");
   });
-
-  it("does not turn at all when the device asks for less motion", () => {
-    asksForLessMotion(true);
-    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
-
-    click(theSpin());
-
-    expect(theWheel()).toBeNull();
-    for (const meal of fiveMeals)
-      expect(screen.getByText(meal.name)).toBeInTheDocument();
-  });
 });
 
 describe("the reveal", () => {
@@ -206,15 +194,6 @@ describe("the reveal", () => {
     spinIt();
 
     expect(cardFor("Sunday")).not.toBe(first);
-  });
-
-  it("leaves the days still when the device asks for less motion", () => {
-    asksForLessMotion(true);
-    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
-
-    click(theSpin());
-
-    expect(cardFor("Sunday")).not.toHaveClass("card-flip");
   });
 });
 

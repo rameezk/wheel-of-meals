@@ -94,7 +94,9 @@ describe("a Household page", () => {
     render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
 
     await screen.findByRole("heading", { name: "The Khans" });
-    expect(remembered()).toEqual({ slug: aSlug, name: "The Khans" });
+    await vi.waitFor(() =>
+      expect(remembered()).toEqual({ slug: aSlug, name: "The Khans" }),
+    );
   });
 
   it("stops being the remembered Household once it opens nothing", async () => {
@@ -104,7 +106,7 @@ describe("a Household page", () => {
     render(<HouseholdPage slug={aSlug} settings={false} onGo={() => {}} />);
 
     await screen.findByRole("alert");
-    expect(remembered()).toBeNull();
+    await vi.waitFor(() => expect(remembered()).toBeNull());
   });
 
   it("leaves the remembered Household alone when another Slug opens nothing", async () => {

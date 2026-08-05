@@ -3,7 +3,7 @@ import { daysOfTheWeek, type CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import { respin, spareMeals, spin, type Week } from "../shared/week";
 import { dayLabels } from "./days";
-import { flipStaggerMillis, useLessMotion } from "./motion";
+import { flipStaggerMillis } from "./motion";
 import { loudButtonStyle } from "./styles";
 import { TheWheel } from "./Wheel";
 
@@ -31,7 +31,6 @@ export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
   const [spun, setSpun] = useState(0);
   const [respun, setRespun] = useState<Partial<Record<CookingDay, number>>>({});
   const [said, setSaid] = useState("");
-  const lessMotion = useLessMotion();
 
   const land = (drawn: Week) => {
     setLanding(null);
@@ -42,9 +41,7 @@ export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
   };
 
   const spinTheWeek = () => {
-    const drawn = spin(mealBank, cookingDays, Math.random);
-    if (lessMotion) land(drawn);
-    else setLanding(drawn);
+    setLanding(spin(mealBank, cookingDays, Math.random));
   };
 
   const respinTheDay = (day: CookingDay) => {
@@ -56,7 +53,7 @@ export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
     setSaid(readOutDay({ day, meal: drawnOn(respunWeek, day) }));
   };
 
-  const flips = spun > 0 && !lessMotion;
+  const flips = spun > 0;
   const noSpares = week !== null && spareMeals(week, mealBank).length === 0;
 
   return (
