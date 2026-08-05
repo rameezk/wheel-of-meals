@@ -42,6 +42,34 @@ describe("the app", () => {
     expect(await screen.findByLabelText(/name/i)).toBeInTheDocument();
   });
 
+  it("opens the Meal Bank at its own URL", async () => {
+    answerWith(aHousehold);
+
+    visit(`/${aSlug}/meal-bank`);
+    render(<App />);
+
+    expect(await screen.findByLabelText("Filter")).toBeInTheDocument();
+  });
+
+  it("gives the Meal Bank its own place in the history", async () => {
+    answerWith(aHousehold);
+
+    visit(`/${aSlug}`);
+    render(<App />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /meal bank/i }),
+    );
+    expect(window.location.pathname).toBe(`/${aSlug}/meal-bank`);
+
+    window.history.back();
+
+    expect(
+      await screen.findByRole("button", { name: /meal bank/i }),
+    ).toBeInTheDocument();
+    expect(window.location.pathname).toBe(`/${aSlug}`);
+  });
+
   it("gives the settings their own place in the history", async () => {
     answerWith(aHousehold);
 
@@ -56,7 +84,7 @@ describe("the app", () => {
     window.history.back();
 
     expect(
-      await screen.findByRole("heading", { name: "Meal Bank" }),
+      await screen.findByRole("button", { name: /meal bank/i }),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/${aSlug}`);
   });
@@ -94,7 +122,7 @@ describe("the app", () => {
     await userEvent.click(screen.getByRole("button", { name: "Open" }));
 
     expect(
-      await screen.findByRole("heading", { name: "Meal Bank" }),
+      await screen.findByRole("button", { name: /meal bank/i }),
     ).toBeInTheDocument();
     expect(window.location.pathname).toBe(`/${aSlug}`);
     await vi.waitFor(() =>

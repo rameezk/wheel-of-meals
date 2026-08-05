@@ -69,12 +69,67 @@ describe("a Household page", () => {
     ).toBeInTheDocument();
   });
 
-  it("says the Meal Bank is empty when it holds nothing", async () => {
+  it("points an empty Bank at the Meal Bank page rather than a form", async () => {
     answerWith(aHousehold);
 
     render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
 
-    expect(await screen.findByText(/no meals yet/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/add a meal to the meal bank/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^meal$/i)).not.toBeInTheDocument();
+  });
+
+  it("carries the count of Meals on the Meal Bank button", async () => {
+    answerWith({ ...aHousehold, mealBank: [aMeal] });
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+
+    expect(
+      await screen.findByRole("button", { name: /meal bank, 1 meal/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the Meal Bank at its own path", async () => {
+    const go = vi.fn();
+    answerWith(aHousehold);
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={go} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /meal bank/i }),
+    );
+
+    expect(go).toHaveBeenCalledWith(`/${aSlug}/meal-bank`);
+  });
+
+  it("curates the Meal Bank on its own page, under the Household name", async () => {
+    answerWith({ ...aHousehold, name: "The Khans", mealBank: [aMeal] });
+
+    render(<HouseholdPage slug={aSlug} view="meal-bank" onGo={() => {}} />);
+
+    expect(
+      await screen.findByRole("heading", { name: "The Khans" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(aSlug)).toBeInTheDocument();
+    expect(screen.getByLabelText("Filter")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Sunday")).not.toBeInTheDocument();
+  });
+
+  it("returns to the Household from the Meal Bank", async () => {
+    const go = vi.fn();
+    answerWith(aHousehold);
+
+    render(<HouseholdPage slug={aSlug} view="meal-bank" onGo={go} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /back to the household/i }),
+    );
+
+    expect(go).toHaveBeenCalledWith(`/${aSlug}`);
   });
 
   it("spins a Week out of the Household's own Meal Bank", async () => {

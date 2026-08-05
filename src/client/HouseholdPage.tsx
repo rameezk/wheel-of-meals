@@ -6,6 +6,7 @@ import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
+import { mealsHeld } from "./meals";
 import { forget, remember } from "./remembered";
 import type { View } from "./route";
 import { ShareButton } from "./Share";
@@ -98,6 +99,13 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
             onChange={show}
             onDone={() => onGo(`/${household.slug}`)}
           />
+        ) : view === "meal-bank" ? (
+          <MealBank
+            slug={household.slug}
+            meals={household.mealBank}
+            onChange={(mealBank) => show({ ...household, mealBank })}
+            onBack={() => onGo(`/${household.slug}`)}
+          />
         ) : (
           <>
             <TheWeek
@@ -105,7 +113,7 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
               mealBank={household.mealBank}
             />
 
-            <div className="flex items-start gap-2">
+            <div className="flex flex-wrap items-start justify-center gap-2">
               <ShareButton
                 label="Share the Household"
                 shareable={{
@@ -116,18 +124,24 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
 
               <button
                 type="button"
+                onClick={() => onGo(`/${household.slug}/meal-bank`)}
+                aria-label={`Meal Bank, ${mealsHeld(household.mealBank.length)}`}
+                className={`${quietButtonStyle} gap-2`}
+              >
+                Meal Bank
+                <span className="rounded-full bg-stone-800 px-2 py-0.5 text-xs text-stone-300">
+                  {household.mealBank.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => onGo(`/${household.slug}/settings`)}
                 className={quietButtonStyle}
               >
                 Settings
               </button>
             </div>
-
-            <MealBank
-              slug={household.slug}
-              meals={household.mealBank}
-              onChange={(mealBank) => show({ ...household, mealBank })}
-            />
           </>
         )}
       </div>

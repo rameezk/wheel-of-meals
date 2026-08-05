@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import {
   mealDescriptionMaxLength,
   mealNameMaxLength,
   type Meal,
 } from "../shared/meal";
 import type { Slug } from "../shared/slug";
+import { narrowedTo } from "./meals";
 import {
   addMeal,
   deleteMeal,
@@ -23,10 +24,14 @@ type MealBankProps = {
   slug: Slug;
   meals: Meal[];
   onChange: (meals: Meal[]) => void;
+  onBack: () => void;
 };
 
 const byName = (one: Meal, other: Meal) =>
   one.name.localeCompare(other.name, undefined, { sensitivity: "base" });
+
+const backButtonStyle =
+  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-700 text-lg text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
 
 const MealFields = ({
   nameLabel,
@@ -113,12 +118,14 @@ const MealForm = ({
   );
 };
 
-export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
+export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
   const [draft, setDraft] = useState<MealDraft>({ name: "", description: "" });
+  const [filter, setFilter] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const filterField = useId();
 
   const attempt = async (change: () => Promise<Meal[]>) => {
     setWorking(true);
@@ -163,14 +170,42 @@ export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
     });
   };
 
+  const narrow = (wanted: string) => {
+    setFilter(wanted);
+    setEditing(null);
+    setConfirming(null);
+  };
+
+  const { shown, count } = narrowedTo(meals, filter);
+
   return (
     <section className="flex w-full flex-col gap-5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm tracking-wide text-stone-500 uppercase">
-          Meal Bank
-        </h3>
-        <p className="text-sm text-stone-400">
-          {meals.length === 1 ? "1 Meal" : `${meals.length} Meals`}
+      <h3 className="sr-only">Meal Bank</h3>
+
+      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-stone-900 bg-stone-950 py-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className={backButtonStyle}
+          title="Back to the Household"
+        >
+          <span className="sr-only">Back to the Household</span>
+          <span aria-hidden>←</span>
+        </button>
+
+        <label className="sr-only" htmlFor={filterField}>
+          Filter
+        </label>
+        <input
+          id={filterField}
+          value={filter}
+          onChange={(event) => narrow(event.target.value)}
+          placeholder="Filter by name"
+          className={`${fieldStyle} min-w-0 flex-1 py-2.5`}
+        />
+
+        <p className="shrink-0 text-sm whitespace-nowrap text-stone-400">
+          {count}
         </p>
       </div>
 
@@ -203,9 +238,14 @@ export const MealBank = ({ slug, meals, onChange }: MealBankProps) => {
         <p className="text-stone-400">
           No Meals yet. Add the ones you cook often.
         </p>
+      ) : shown.length === 0 ? (
+        <p className="text-stone-400">
+          No Meal matches “{filter.trim()}”. The rest of the Bank is still here
+          - clear the filter to see it.
+        </p>
       ) : (
         <ul className="flex flex-col gap-2">
-          {[...meals].sort(byName).map((meal) => (
+          {[...shown].sort(byName).map((meal) => (
             <li
               key={meal.id}
               className="rounded-2xl border border-stone-800 bg-stone-900/60 px-4 py-3"

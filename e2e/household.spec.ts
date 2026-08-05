@@ -20,7 +20,11 @@ const openHousehold = async (page: Page) => {
   return href;
 };
 
+const openTheMealBank = (page: Page) =>
+  page.getByRole("button", { name: "Meal Bank" }).click();
+
 const stockTheMealBank = async (page: Page, ...names: string[]) => {
+  await openTheMealBank(page);
   for (const name of names) {
     await page.getByLabel("Meal", { exact: true }).fill(name);
     await page.getByRole("button", { name: "Add", exact: true }).click();
@@ -28,6 +32,7 @@ const stockTheMealBank = async (page: Page, ...names: string[]) => {
       page.getByRole("listitem").filter({ hasText: name }),
     ).toBeVisible();
   }
+  await page.getByRole("button", { name: "Back to the Household" }).click();
 };
 
 const theDay = (page: Page, day: string) =>
@@ -75,12 +80,12 @@ test("creating a Household hands over a Slug that opens it again", async ({
   await openIt.click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
   await expect(page.getByText("Sunday", { exact: true })).toBeVisible();
-  await expect(page.getByText("No Meals yet.")).toBeVisible();
+  await expect(page.getByText("Add a Meal to the Meal Bank")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
 });
 
 test("a Household names itself and picks the nights it cooks", async ({
@@ -126,7 +131,7 @@ test("the settings close on the browser's own Back button", async ({
   await page.goBack();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
 });
 
 test("the settings open straight from their own link", async ({ page }) => {
@@ -135,6 +140,82 @@ test("the settings open straight from their own link", async ({ page }) => {
   await page.goto(`${href}/settings`);
 
   await expect(page.getByLabel("Household name (optional)")).toBeVisible();
+});
+
+test("the Meal Bank is curated on its own page, and filters as you type", async ({
+  page,
+}) => {
+  const href = await openHousehold(page);
+
+  await openTheMealBank(page);
+  await expect(page).toHaveURL(new RegExp(`${href}/meal-bank$`));
+  await expect(
+    page.getByRole("heading", { name: href.slice(1) }),
+  ).toBeVisible();
+
+  await page.getByLabel("Meal", { exact: true }).fill("Butter chicken");
+  await page
+    .getByLabel("Description (optional)")
+    .fill("The one with the coconut milk");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await expect(page.getByText("1 Meal", { exact: true })).toBeVisible();
+
+  for (const name of ["Butter chicken curry", "Lasagne"]) {
+    await page.getByLabel("Meal", { exact: true }).fill(name);
+    await page.getByRole("button", { name: "Add", exact: true }).click();
+    await expect(
+      page.getByRole("listitem").filter({ hasText: name }),
+    ).toBeVisible();
+  }
+  await expect(page.getByText("3 Meals", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Filter").fill("  BUTTER  ");
+
+  await expect(page.getByRole("listitem")).toHaveText([
+    /^Butter chickenThe one with the coconut milk/,
+    /^Butter chicken curry/,
+  ]);
+  await expect(page.getByText("2 of 3 Meals")).toBeVisible();
+  await expect(page.getByLabel("Meal", { exact: true })).toHaveValue("");
+
+  await page.getByLabel("Filter").fill("coconut");
+
+  await expect(page.getByRole("listitem")).toHaveCount(0);
+  await expect(page.getByText("No Meal matches")).toBeVisible();
+  await expect(page.getByText("0 of 3 Meals")).toBeVisible();
+
+  await page.getByLabel("Filter").fill("");
+  await expect(page.getByRole("listitem")).toHaveCount(3);
+
+  await page.getByRole("button", { name: "Delete Lasagne" }).click();
+  await page.getByRole("button", { name: "Yes, delete Lasagne" }).click();
+  await expect(page.getByText("2 Meals", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Back to the Household" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
+  await expect(
+    page.getByRole("button", { name: "Meal Bank, 2 Meals" }),
+  ).toBeVisible();
+});
+
+test("the Meal Bank opens from its own link, and closes on the browser's Back button", async ({
+  page,
+}) => {
+  const href = await createHousehold(page);
+
+  await page.goto(`${href}/meal-bank`);
+  await expect(page.getByLabel("Filter")).toBeVisible();
+
+  await page.goto(href);
+  await openTheMealBank(page);
+  await expect(page.getByLabel("Filter")).toBeVisible();
+
+  await page.goBack();
+
+  await expect(page).toHaveURL(new RegExp(`${href}$`));
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByLabel("Filter")).toHaveCount(0);
 });
 
 test("a Household cannot stop cooking altogether", async ({ page }) => {
@@ -152,7 +233,7 @@ test("the landing page offers the last Household opened, and waits to be asked",
   page,
 }) => {
   const href = await openHousehold(page);
-  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
 
   await page.goto("/");
 
@@ -164,7 +245,7 @@ test("the landing page offers the last Household opened, and waits to be asked",
   await page.getByRole("button", { name: `Open ${href.slice(1)}` }).click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
 });
 
 test("four words typed in open the Household on a device that has never seen it", async ({
@@ -180,7 +261,7 @@ test("four words typed in open the Household on a device that has never seen it"
   await page.getByRole("button", { name: "Open", exact: true }).click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
-  await expect(page.getByRole("heading", { name: "Meal Bank" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Meal Bank" })).toBeVisible();
 
   await page.goto("/");
   await expect(
@@ -250,8 +331,10 @@ test("the wheel turns once, then the whole Week flips in", async ({ page }) => {
   ).toBeVisible();
   await expect(theDay(page, "Sunday")).not.toBeVisible();
 
-  await page.getByLabel("Meal", { exact: true }).fill("Ramen");
-  await expect(page.getByLabel("Meal", { exact: true })).toHaveValue("Ramen");
+  await expect(
+    page.getByRole("button", { name: "Meal Bank, 2 Meals" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
 
   await page.getByRole("button", { name: "Skip the spin" }).click();
 
