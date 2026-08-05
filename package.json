@@ -10,7 +10,7 @@
     "preview": "npm run build && npm run db:migrate:local && wrangler dev",
     "deploy": "npm run build && wrangler d1 migrations apply wheel-of-meals --remote && wrangler deploy",
     "typecheck": "wrangler types && tsc --build --force",
-    "lint": "eslint . && prettier --check .",
+    "lint": "eslint . && prettier --check . && shellcheck scripts/*.sh",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
