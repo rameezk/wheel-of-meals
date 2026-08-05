@@ -7,6 +7,8 @@ import { AppShell } from "./AppShell";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { forget, remember } from "./remembered";
+import { ShareButton } from "./Share";
+import { householdLink } from "./sharing";
 import { quietButtonStyle } from "./styles";
 import { TheWeek } from "./Week";
 
@@ -102,13 +104,23 @@ export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
               mealBank={household.mealBank}
             />
 
-            <button
-              type="button"
-              onClick={() => onGo(`/${household.slug}/settings`)}
-              className={quietButtonStyle}
-            >
-              Settings
-            </button>
+            <div className="flex items-start gap-2">
+              <ShareButton
+                label="Share the Household"
+                shareable={{
+                  title: household.name ?? household.slug,
+                  url: householdLink(household.slug),
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => onGo(`/${household.slug}/settings`)}
+                className={quietButtonStyle}
+              >
+                Settings
+              </button>
+            </div>
 
             <MealBank
               slug={household.slug}

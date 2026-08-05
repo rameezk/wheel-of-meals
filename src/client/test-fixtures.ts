@@ -18,6 +18,28 @@ export const aMeal: Meal = {
   description: "The one with the coconut milk",
 };
 
+const fitWith = (name: string, value: unknown) =>
+  Object.defineProperty(navigator, name, { value, configurable: true });
+
+export const withAShareSheet = () => {
+  const share = vi.fn<(shareable: ShareData) => Promise<void>>();
+  share.mockResolvedValue(undefined);
+  fitWith("share", share);
+  return share;
+};
+
+export const withAClipboard = () => {
+  const writeText = vi.fn<(text: string) => Promise<void>>();
+  writeText.mockResolvedValue(undefined);
+  fitWith("clipboard", { writeText });
+  return writeText;
+};
+
+export const withNoSharing = () => {
+  Reflect.deleteProperty(navigator, "share");
+  Reflect.deleteProperty(navigator, "clipboard");
+};
+
 const answer = (body: unknown, status: number) =>
   new Response(status === 204 ? null : JSON.stringify(body), {
     status,

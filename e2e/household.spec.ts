@@ -33,6 +33,28 @@ const stockTheMealBank = async (page: Page, ...names: string[]) => {
 const theDay = (page: Page, day: string) =>
   page.getByRole("listitem").filter({ hasText: day });
 
+type ShareSheet = { shared: ShareData[] };
+
+const withAShareSheet = (page: Page) =>
+  page.addInitScript(() => {
+    const sheet = window as unknown as ShareSheet;
+    sheet.shared = [];
+    Object.defineProperty(navigator, "share", {
+      value: (shareable: ShareData) => {
+        sheet.shared.push(shareable);
+        return Promise.resolve();
+      },
+    });
+  });
+
+const whatWasShared = (page: Page) =>
+  page.evaluate(() => (window as unknown as ShareSheet).shared);
+
+const spinTheWeek = async (page: Page) => {
+  await page.getByRole("button", { name: "Spin the Week" }).click();
+  await page.getByRole("button", { name: "Skip the spin" }).click();
+};
+
 test("creating a Household hands over a Slug that opens it again", async ({
   page,
 }) => {
@@ -235,6 +257,56 @@ test("the wheel turns once, then the whole Week flips in", async ({ page }) => {
 
   await expect(theDay(page, "Sunday")).toContainText(/Butter chicken|Lasagne/);
   await expect(page.getByRole("button", { name: "Spin again" })).toBeVisible();
+});
+
+test("a phone hands the Week to its own share sheet, labelled day by day", async ({
+  page,
+}) => {
+  await withAShareSheet(page);
+  await openHousehold(page);
+  await stockTheMealBank(page, "Butter chicken");
+
+  await spinTheWeek(page);
+  await page.getByRole("button", { name: "Share the Week" }).click();
+
+  await expect(page.getByText("Shared.")).toBeVisible();
+  expect(await whatWasShared(page)).toEqual([
+    {
+      title: "The Week",
+      text: "Sunday: Butter chicken\nMonday: -\nTuesday: -\nWednesday: -\nThursday: -",
+    },
+  ]);
+});
+
+test("a desktop without a share sheet copies the Week instead, and says so", async ({
+  context,
+  page,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await openHousehold(page);
+  await stockTheMealBank(page, "Butter chicken", "Lasagne");
+
+  await spinTheWeek(page);
+  await page.getByRole("button", { name: "Share the Week" }).click();
+
+  await expect(page.getByText("Copied to the clipboard.")).toBeVisible();
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  expect(copied).toMatch(/^Sunday: (Butter chicken|Lasagne)$/m);
+  expect(copied).toContain("Thursday: -");
+});
+
+test("the Household link goes out through the same control", async ({
+  page,
+}) => {
+  await withAShareSheet(page);
+  const href = await openHousehold(page);
+
+  await page.getByRole("button", { name: "Share the Household" }).click();
+
+  await expect(page.getByText("Shared.")).toBeVisible();
+  expect(await whatWasShared(page)).toEqual([
+    { title: href.slice(1), url: new URL(href, page.url()).href },
+  ]);
 });
 
 test("a device that asks for less motion still gets the spin", async ({
