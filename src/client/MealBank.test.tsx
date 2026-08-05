@@ -1,12 +1,20 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "../shared/meal";
 import { MealBank } from "./MealBank";
+import { landedHighlightMillis } from "./motion";
+import { landedRowStyle } from "./styles";
 import { aMeal, aSlug, answerInTurn } from "./test-fixtures";
 
 const lasagne: Meal = { id: "meal-2", name: "Lasagne", description: null };
+
+const aubergine: Meal = {
+  id: "meal-3",
+  name: "Aubergine bake",
+  description: null,
+};
 
 const HoldingBank = ({ held }: { held: Meal[] }) => {
   const [meals, setMeals] = useState(held);
@@ -31,7 +39,15 @@ const pressAdd = () =>
 const filterBy = (text: string) =>
   userEvent.type(screen.getByLabelText("Filter"), text);
 
+const rows = () => screen.queryAllByRole("listitem");
+
+const highlightedRow = () =>
+  rows().find((row) => row.className.includes(landedRowStyle)) ?? null;
+
+const announcement = () => screen.getByRole("status").textContent;
+
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -285,6 +301,141 @@ describe("the Meal Bank", () => {
 
     expect(screen.getByLabelText(/meal/i)).toHaveValue("");
     expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
+  });
+
+  it("highlights a Meal that lands, where the list put it", async () => {
+    answerInTurn({ body: aubergine, status: 201 });
+    showBank([aMeal, lasagne]);
+
+    await typeName(aubergine.name);
+    await pressAdd();
+
+    await screen.findByText(aubergine.name);
+    expect(highlightedRow()).toBe(rows()[0]);
+    expect(rows().map((row) => row.textContent)).toEqual([
+      expect.stringContaining(aubergine.name),
+      expect.stringContaining(aMeal.name),
+      expect.stringContaining(lasagne.name),
+    ]);
+  });
+
+  it("lets the highlight settle on its own, with nothing to press", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    answerInTurn({ body: lasagne, status: 201 });
+    showBank([aMeal]);
+
+    await typeName(lasagne.name);
+    await pressAdd();
+    await screen.findByText(lasagne.name);
+    expect(highlightedRow()).not.toBeNull();
+
+    await act(() => vi.advanceTimersByTimeAsync(landedHighlightMillis));
+
+    expect(highlightedRow()).toBeNull();
+    expect(announcement()).toBe("");
+  });
+
+  it("says a Meal landed, for anyone who cannot see the highlight", async () => {
+    answerInTurn({ body: lasagne, status: 201 });
+    showBank([aMeal]);
+
+    expect(announcement()).toBe("");
+
+    await typeName(lasagne.name);
+    await pressAdd();
+
+    await screen.findByText(lasagne.name);
+    expect(announcement()).toBe("Lasagne added");
+  });
+
+  it("carries the highlight to the second Meal added, leaving the first", async () => {
+    answerInTurn(
+      { body: lasagne, status: 201 },
+      { body: aubergine, status: 201 },
+    );
+    showBank([aMeal]);
+
+    await typeName(lasagne.name);
+    await pressAdd();
+    await screen.findByText(lasagne.name);
+    await typeName(aubergine.name);
+    await pressAdd();
+    await screen.findByText(aubergine.name);
+
+    expect(
+      rows().filter((row) => row.className.includes(landedRowStyle)),
+    ).toHaveLength(1);
+    expect(highlightedRow()).toHaveTextContent(aubergine.name);
+  });
+
+  it("highlights nothing when the add is refused", async () => {
+    answerInTurn({
+      body: { error: "duplicate_meal", message: "That Meal is already in it." },
+      status: 409,
+    });
+    showBank([aMeal]);
+
+    await typeName(aMeal.name);
+    await pressAdd();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/already/i);
+    expect(highlightedRow()).toBeNull();
+  });
+
+  it("highlights nothing when a Meal is edited", async () => {
+    answerInTurn({ body: { ...aMeal, name: "Butter Chicken" } });
+    showBank([aMeal]);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await screen.findByText("Butter Chicken");
+    expect(highlightedRow()).toBeNull();
+  });
+
+  it("highlights nothing when a Meal is deleted", async () => {
+    answerInTurn({ status: 204 });
+    showBank([aMeal, lasagne]);
+
+    await userEvent.click(
+      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: `Yes, delete ${aMeal.name}` }),
+    );
+
+    await vi.waitFor(() => expect(rows()).toHaveLength(1));
+    expect(highlightedRow()).toBeNull();
+  });
+
+  it("lifts a filter that would have hidden the Meal just added", async () => {
+    answerInTurn({ body: aubergine, status: 201 });
+    showBank([aMeal, lasagne]);
+
+    await filterBy("lasa");
+    await typeName(aubergine.name);
+    await pressAdd();
+
+    await screen.findByText(aubergine.name);
+    expect(screen.getByLabelText("Filter")).toHaveValue("");
+    expect(highlightedRow()).toHaveTextContent(aubergine.name);
+    expect(rows()).toHaveLength(3);
+  });
+
+  it("leaves a filter the Meal just added matches", async () => {
+    answerInTurn({ body: aubergine, status: 201 });
+    showBank([aMeal, lasagne]);
+
+    await filterBy("bake");
+    await typeName(aubergine.name);
+    await pressAdd();
+
+    await screen.findByText(aubergine.name);
+    expect(screen.getByLabelText("Filter")).toHaveValue("bake");
+    expect(highlightedRow()).toHaveTextContent(aubergine.name);
+    expect(rows()).toHaveLength(1);
   });
 
   it("goes back to the Household from the pinned line", async () => {

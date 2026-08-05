@@ -159,6 +159,8 @@ test("the Meal Bank is curated on its own page, and filters as you type", async 
     .fill("The one with the coconut milk");
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await expect(page.getByText("1 Meal", { exact: true })).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Butter chicken added");
+  await expect(page.getByRole("status")).toHaveText("");
 
   for (const name of ["Butter chicken curry", "Lasagne"]) {
     await page.getByLabel("Meal", { exact: true }).fill(name);
@@ -187,15 +189,25 @@ test("the Meal Bank is curated on its own page, and filters as you type", async 
   await page.getByLabel("Filter").fill("");
   await expect(page.getByRole("listitem")).toHaveCount(3);
 
+  await page.getByLabel("Filter").fill("lasa");
+  await page.getByLabel("Meal", { exact: true }).fill("Aubergine bake");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+
+  await expect(page.getByLabel("Filter")).toHaveValue("");
+  await expect(page.getByRole("listitem").first()).toContainText(
+    "Aubergine bake",
+  );
+  await expect(page.getByRole("listitem")).toHaveCount(4);
+
   await page.getByRole("button", { name: "Delete Lasagne" }).click();
   await page.getByRole("button", { name: "Yes, delete Lasagne" }).click();
-  await expect(page.getByText("2 Meals", { exact: true })).toBeVisible();
+  await expect(page.getByText("3 Meals", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Back to the Household" }).click();
 
   await expect(page).toHaveURL(new RegExp(`${href}$`));
   await expect(
-    page.getByRole("button", { name: "Meal Bank, 2 Meals" }),
+    page.getByRole("button", { name: "Meal Bank, 3 Meals" }),
   ).toBeVisible();
 });
 

@@ -1,11 +1,12 @@
-import { useId, useState, type FormEvent } from "react";
+import { useEffect, useId, useState, type FormEvent } from "react";
 import {
   mealDescriptionMaxLength,
   mealNameMaxLength,
   type Meal,
 } from "../shared/meal";
 import type { Slug } from "../shared/slug";
-import { narrowedTo } from "./meals";
+import { narrowedTo, shownBy } from "./meals";
+import { landedHighlightMillis } from "./motion";
 import {
   addMeal,
   deleteMeal,
@@ -16,8 +17,11 @@ import {
 import {
   alertStyle,
   fieldStyle,
+  landedRowStyle,
   loudButtonStyle,
   quietButtonStyle,
+  rowStyle,
+  settledRowStyle,
 } from "./styles";
 
 type MealBankProps = {
@@ -125,17 +129,28 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
   const [working, setWorking] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [justLanded, setJustLanded] = useState<string | null>(null);
   const filterField = useId();
 
-  const attempt = async (change: () => Promise<Meal[]>) => {
+  useEffect(() => {
+    if (!justLanded) return;
+
+    const settle = setTimeout(() => setJustLanded(null), landedHighlightMillis);
+    return () => clearTimeout(settle);
+  }, [justLanded]);
+
+  const attempt = async <Changed,>(
+    change: () => Promise<{ meals: Meal[]; changed: Changed }>,
+  ) => {
     setWorking(true);
     setProblem(null);
     try {
-      onChange(await change());
-      return true;
+      const outcome = await change();
+      onChange(outcome.meals);
+      return outcome;
     } catch (error) {
       setProblem(messageFor(error));
-      return false;
+      return null;
     } finally {
       setWorking(false);
     }
@@ -145,28 +160,38 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
     event.preventDefault();
     if (!named(draft)) return;
 
-    const landed = await attempt(async () => [
-      ...meals,
-      await addMeal(slug, draft),
-    ]);
+    const outcome = await attempt(async () => {
+      const added = await addMeal(slug, draft);
+      return { meals: [...meals, added], changed: added };
+    });
 
-    if (landed) setDraft({ name: "", description: "" });
+    if (!outcome) return;
+
+    setDraft({ name: "", description: "" });
+    setJustLanded(outcome.changed.id);
+    if (!shownBy(outcome.changed, filter)) setFilter("");
   };
 
   const save = async (meal: Meal, draft: MealDraft) => {
-    const landed = await attempt(async () => {
+    const outcome = await attempt(async () => {
       const edited = await editMeal(slug, meal.id, draft);
-      return meals.map((held) => (held.id === edited.id ? edited : held));
+      return {
+        meals: meals.map((held) => (held.id === edited.id ? edited : held)),
+        changed: edited,
+      };
     });
 
-    if (landed) setEditing(null);
+    if (outcome) setEditing(null);
   };
 
   const remove = async (meal: Meal) => {
     setConfirming(null);
     await attempt(async () => {
       await deleteMeal(slug, meal.id);
-      return meals.filter((held) => held.id !== meal.id);
+      return {
+        meals: meals.filter((held) => held.id !== meal.id),
+        changed: meal,
+      };
     });
   };
 
@@ -177,6 +202,7 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
   };
 
   const { shown, count } = narrowedTo(meals, filter);
+  const landed = meals.find((meal) => meal.id === justLanded);
 
   return (
     <section className="flex w-full flex-col gap-5">
@@ -234,6 +260,10 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
         </p>
       )}
 
+      <p role="status" aria-live="polite" className="sr-only">
+        {landed ? `${landed.name} added` : ""}
+      </p>
+
       {meals.length === 0 ? (
         <p className="text-stone-400">
           No Meals yet. Add the ones you cook often.
@@ -248,7 +278,9 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
           {[...shown].sort(byName).map((meal) => (
             <li
               key={meal.id}
-              className="rounded-2xl border border-stone-800 bg-stone-900/60 px-4 py-3"
+              className={`${rowStyle} ${
+                meal.id === justLanded ? landedRowStyle : settledRowStyle
+              }`}
             >
               {editing === meal.id ? (
                 <MealForm
