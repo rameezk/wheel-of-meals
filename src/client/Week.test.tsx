@@ -104,6 +104,34 @@ describe("the Week", () => {
     ).toBeInTheDocument();
   });
 
+  it("turns the wheel on arrival when it was sent here to spin", () => {
+    render(
+      <TheWeek cookingDays={cookingDays} mealBank={fiveMeals} spinOnArrival />,
+    );
+
+    expect(theWheel()).toBeInTheDocument();
+
+    settle();
+
+    for (const meal of fiveMeals)
+      expect(screen.getByText(meal.name)).toBeInTheDocument();
+  });
+
+  it("waits to be asked when it arrived on its own", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={fiveMeals} />);
+
+    expect(theWheel()).toBeNull();
+  });
+
+  it("turns no wheel on arrival with nothing to draw from", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={[]} spinOnArrival />);
+
+    expect(theWheel()).toBeNull();
+    expect(
+      screen.getByText(/add a meal to the meal bank/i),
+    ).toBeInTheDocument();
+  });
+
   it("replaces the Week when it is spun again", () => {
     vi.spyOn(Math, "random").mockReturnValueOnce(0).mockReturnValueOnce(0.99);
 

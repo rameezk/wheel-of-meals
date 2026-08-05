@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { remembered } from "./remembered";
-import { aHousehold, aSlug, answerInTurn, answerWith } from "./test-fixtures";
+import {
+  aHousehold,
+  aSlug,
+  aStockedHousehold,
+  answerInTurn,
+  answerWith,
+} from "./test-fixtures";
 
 const visit = (path: string) => window.history.pushState({}, "", path);
 
@@ -52,7 +58,7 @@ describe("the app", () => {
   });
 
   it("gives the Meal Bank its own place in the history", async () => {
-    answerWith(aHousehold);
+    answerWith(aStockedHousehold);
 
     visit(`/${aSlug}`);
     render(<App />);
@@ -71,7 +77,7 @@ describe("the app", () => {
   });
 
   it("gives the settings their own place in the history", async () => {
-    answerWith(aHousehold);
+    answerWith(aStockedHousehold);
 
     visit(`/${aSlug}`);
     render(<App />);
@@ -91,8 +97,14 @@ describe("the app", () => {
 
   it("shows what the settings changed on the way back to the Household", async () => {
     answerInTurn(
-      { body: aHousehold },
-      { body: { ...aHousehold, name: "The Khans", cookingDays: ["friday"] } },
+      { body: aStockedHousehold },
+      {
+        body: {
+          ...aStockedHousehold,
+          name: "The Khans",
+          cookingDays: ["friday"],
+        },
+      },
     );
 
     visit(`/${aSlug}/settings`);
@@ -110,7 +122,7 @@ describe("the app", () => {
   });
 
   it("opens the Household whose Slug was typed in, and remembers it", async () => {
-    answerInTurn({ body: aHousehold }, { body: aHousehold });
+    answerInTurn({ body: aStockedHousehold }, { body: aStockedHousehold });
 
     visit("/");
     render(<App />);
