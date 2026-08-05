@@ -64,7 +64,7 @@ export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
 
       {mealBank.length === 0 ? (
         <p className="text-center text-stone-400">
-          Add a Meal below, then you can spin a Week.
+          Add a Meal to the Meal Bank, then you can spin a Week.
         </p>
       ) : (
         <button
@@ -157,13 +157,15 @@ export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
 
       {!landing && week?.some(({ meal }) => meal === null) ? (
         <p id={noSparesReason} className="text-center text-sm text-stone-400">
-          The Meal Bank ran out before the week did. Add a few more Meals below.
+          The Meal Bank ran out before the week did. Open the Meal Bank and add
+          a few more.
         </p>
       ) : (
         !landing &&
         noSpares && (
           <p id={noSparesReason} className="text-center text-sm text-stone-400">
-            Every Meal is already in the Week. Add another to re-spin a day.
+            Every Meal is already in the Week. Add another in the Meal Bank to
+            re-spin a day.
           </p>
         )
       )}

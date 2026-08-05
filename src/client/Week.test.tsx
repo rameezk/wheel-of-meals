@@ -99,7 +99,9 @@ describe("the Week", () => {
     render(<TheWeek cookingDays={cookingDays} mealBank={[]} />);
 
     expect(screen.queryByRole("button", { name: /spin/i })).toBeNull();
-    expect(screen.getByText(/add a meal below/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/add a meal to the meal bank/i),
+    ).toBeInTheDocument();
   });
 
   it("replaces the Week when it is spun again", () => {

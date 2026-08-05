@@ -17,6 +17,13 @@ describe("the route a path names", () => {
     });
   });
 
+  it("opens the Meal Bank view under the Slug", () => {
+    expect(routeFromPath(`/${aSlug}/meal-bank`)).toEqual({
+      slug: aSlug,
+      view: "meal-bank",
+    });
+  });
+
   it("ignores surrounding slashes", () => {
     expect(routeFromPath(`//${aSlug}/settings//`)).toEqual({
       slug: aSlug,
