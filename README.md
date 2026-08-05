@@ -10,7 +10,8 @@ the domain language, and [`docs/adr/`](docs/adr/) for the decisions.
 
 ## Running it
 
-Requires Node 24 (see `.nvmrc`).
+Requires Node 24 (see `.nvmrc`) and [ShellCheck](https://www.shellcheck.net/),
+which `npm run lint` uses on the scripts under `scripts/`.
 
 ```sh
 npm install
@@ -22,7 +23,7 @@ npm run preview      # production build, served by the Worker as it ships
 ## Checks
 
 ```sh
-npm run lint         # eslint + prettier
+npm run lint         # eslint + prettier + shellcheck
 npm run typecheck    # wrangler types + tsc
 npm test             # vitest: client (jsdom) and worker (workers runtime)
 npm run test:e2e     # playwright against a local production build
