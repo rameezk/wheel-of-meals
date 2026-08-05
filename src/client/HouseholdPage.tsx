@@ -7,6 +7,7 @@ import { AppShell } from "./AppShell";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { forget, remember } from "./remembered";
+import type { View } from "./route";
 import { ShareButton } from "./Share";
 import { householdLink } from "./sharing";
 import { quietButtonStyle } from "./styles";
@@ -20,11 +21,11 @@ type Lookup =
 
 type HouseholdPageProps = {
   slug: Slug;
-  settings: boolean;
+  view: View;
   onGo: (path: string) => void;
 };
 
-export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
+export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
   const [lookup, setLookup] = useState<Lookup>({ state: "looking" });
 
   useEffect(() => {
@@ -91,7 +92,7 @@ export const HouseholdPage = ({ slug, settings, onGo }: HouseholdPageProps) => {
           )}
         </div>
 
-        {settings ? (
+        {view === "settings" ? (
           <HouseholdSettings
             household={household}
             onChange={show}
