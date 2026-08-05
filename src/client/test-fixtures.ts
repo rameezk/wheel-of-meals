@@ -18,6 +18,11 @@ export const aMeal: Meal = {
   description: "The one with the coconut milk",
 };
 
+export const aStockedHousehold: Household = {
+  ...aHousehold,
+  mealBank: [aMeal],
+};
+
 const fitWith = (name: string, value: unknown) =>
   Object.defineProperty(navigator, name, { value, configurable: true });
 

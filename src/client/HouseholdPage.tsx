@@ -4,6 +4,8 @@ import { type Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
+import { FirstRun } from "./FirstRun";
+import { firstRunSkipped, skipFirstRun } from "./guiding";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { mealsHeld } from "./meals";
@@ -28,16 +30,31 @@ type HouseholdPageProps = {
 
 export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
   const [lookup, setLookup] = useState<Lookup>({ state: "looking" });
+  const [guiding, setGuiding] = useState(false);
+  const [spinOnArrival, setSpinOnArrival] = useState(false);
+  const [shownView, setShownView] = useState(view);
+
+  if (shownView !== view) {
+    setShownView(view);
+    setGuiding(false);
+    setSpinOnArrival(false);
+  }
 
   useEffect(() => {
     const controller = new AbortController();
 
     fetchHousehold(slug, controller.signal)
-      .then((household) =>
-        setLookup(
-          household ? { state: "found", household } : { state: "missing" },
-        ),
-      )
+      .then((household) => {
+        if (!household) {
+          setLookup({ state: "missing" });
+          return;
+        }
+
+        setLookup({ state: "found", household });
+        setGuiding(
+          household.mealBank.length === 0 && !firstRunSkipped(household.slug),
+        );
+      })
       .catch(() => {
         if (!controller.signal.aborted) setLookup({ state: "failed" });
       });
@@ -106,11 +123,26 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
             onChange={(mealBank) => show({ ...household, mealBank })}
             onBack={() => onGo(`/${household.slug}`)}
           />
+        ) : guiding ? (
+          <FirstRun
+            slug={household.slug}
+            meals={household.mealBank}
+            onChange={(mealBank) => show({ ...household, mealBank })}
+            onSpin={() => {
+              setSpinOnArrival(true);
+              setGuiding(false);
+            }}
+            onSkip={() => {
+              skipFirstRun(household.slug);
+              setGuiding(false);
+            }}
+          />
         ) : (
           <>
             <TheWeek
               cookingDays={household.cookingDays}
               mealBank={household.mealBank}
+              spinOnArrival={spinOnArrival}
             />
 
             <div className="flex flex-wrap items-start justify-center gap-2">

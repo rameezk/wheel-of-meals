@@ -3,14 +3,21 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HouseholdPage } from "./HouseholdPage";
 import { remember, remembered } from "./remembered";
+import { skipFirstRun } from "./guiding";
+import { mealSuggestions } from "./suggestions";
 import {
   aHousehold,
   aMeal,
   aSlug,
+  aStockedHousehold,
+  answerInTurn,
   answerWith,
   withAShareSheet,
   withNoSharing,
 } from "./test-fixtures";
+
+const theGuide = () =>
+  screen.queryByRole("heading", { name: /what do you cook often/i });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -32,7 +39,7 @@ describe("a Household page", () => {
   });
 
   it("shows the whole week, marking the days it does not cook", async () => {
-    answerWith(aHousehold);
+    answerWith(aStockedHousehold);
 
     render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
 
@@ -70,6 +77,7 @@ describe("a Household page", () => {
   });
 
   it("points an empty Bank at the Meal Bank page rather than a form", async () => {
+    skipFirstRun(aSlug);
     answerWith(aHousehold);
 
     render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
@@ -81,7 +89,7 @@ describe("a Household page", () => {
   });
 
   it("carries the count of Meals on the Meal Bank button", async () => {
-    answerWith({ ...aHousehold, mealBank: [aMeal] });
+    answerWith(aStockedHousehold);
 
     render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
 
@@ -92,7 +100,7 @@ describe("a Household page", () => {
 
   it("opens the Meal Bank at its own path", async () => {
     const go = vi.fn();
-    answerWith(aHousehold);
+    answerWith(aStockedHousehold);
 
     render(<HouseholdPage slug={aSlug} view="household" onGo={go} />);
 
@@ -153,7 +161,7 @@ describe("a Household page", () => {
 
   it("shares the link a spouse needs to reach the same Meal Bank", async () => {
     const share = withAShareSheet();
-    answerWith({ ...aHousehold, name: "The Khans" });
+    answerWith({ ...aStockedHousehold, name: "The Khans" });
 
     render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
 
@@ -223,5 +231,132 @@ describe("a Household page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /something went wrong/i,
     );
+  });
+});
+
+describe("the first run of a Household", () => {
+  const suggestion = mealSuggestions[0];
+
+  const tapASuggestion = async () => {
+    await userEvent.click(
+      await screen.findByRole("button", { name: `Add ${suggestion}` }),
+    );
+  };
+
+  it("guides a brand new Household rather than handing it an empty Week", async () => {
+    answerWith(aHousehold);
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+
+    expect(await screen.findByText(/what do you cook often/i)).toBeVisible();
+    expect(screen.queryByText("Sunday")).not.toBeInTheDocument();
+  });
+
+  it("leaves a Household that already holds Meals alone", async () => {
+    answerWith(aStockedHousehold);
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+
+    await screen.findByRole("button", { name: /spin the week/i });
+    expect(theGuide()).not.toBeInTheDocument();
+  });
+
+  it("stays put while the Bank is being filled, one Meal at a time", async () => {
+    answerInTurn({ body: aHousehold }, { body: aMeal });
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+    await tapASuggestion();
+
+    expect(theGuide()).toBeInTheDocument();
+  });
+
+  it("hands the filled Bank straight into a Spin", async () => {
+    answerInTurn({ body: aHousehold }, { body: aMeal });
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+    await tapASuggestion();
+    await userEvent.click(
+      screen.getByRole("button", { name: /spin the week/i }),
+    );
+
+    expect(theGuide()).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole("button", { name: /skip/i }));
+    expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
+      aMeal.name,
+    );
+  });
+
+  it("spins once on the way out, not again on every visit back", async () => {
+    answerInTurn({ body: aHousehold }, { body: aMeal });
+
+    const { rerender } = render(
+      <HouseholdPage slug={aSlug} view="household" onGo={() => {}} />,
+    );
+    await tapASuggestion();
+    await userEvent.click(
+      screen.getByRole("button", { name: /spin the week/i }),
+    );
+    await userEvent.click(await screen.findByRole("button", { name: /skip/i }));
+
+    rerender(<HouseholdPage slug={aSlug} view="settings" onGo={() => {}} />);
+    rerender(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+
+    expect(screen.queryByRole("button", { name: /skip the spin/i })).toBeNull();
+    expect(
+      screen.getByRole("button", { name: /spin the week/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the Household page when it is skipped", async () => {
+    answerWith(aHousehold);
+
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: /skip for now/i }),
+    );
+
+    expect(theGuide()).not.toBeInTheDocument();
+    expect(screen.getByText(/add a meal to the meal bank/i)).toBeVisible();
+  });
+
+  it("remembers being skipped, so the next visit is not asked again", async () => {
+    answerWith(aHousehold);
+
+    const { unmount } = render(
+      <HouseholdPage slug={aSlug} view="household" onGo={() => {}} />,
+    );
+    await userEvent.click(
+      await screen.findByRole("button", { name: /skip for now/i }),
+    );
+    unmount();
+
+    answerWith(aHousehold);
+    render(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+
+    expect(await screen.findByText("Sunday")).toBeVisible();
+    expect(theGuide()).not.toBeInTheDocument();
+  });
+
+  it("stays out of the settings and the Meal Bank, whatever the Bank holds", async () => {
+    answerWith(aHousehold);
+
+    render(<HouseholdPage slug={aSlug} view="meal-bank" onGo={() => {}} />);
+
+    expect(await screen.findByLabelText("Filter")).toBeVisible();
+    expect(theGuide()).not.toBeInTheDocument();
+  });
+
+  it("is over once the Bank has been filled somewhere else instead", async () => {
+    answerWith(aHousehold);
+
+    const { rerender } = render(
+      <HouseholdPage slug={aSlug} view="meal-bank" onGo={() => {}} />,
+    );
+    await screen.findByLabelText("Filter");
+
+    rerender(<HouseholdPage slug={aSlug} view="household" onGo={() => {}} />);
+
+    expect(theGuide()).not.toBeInTheDocument();
+    expect(screen.getByText("Sunday")).toBeVisible();
   });
 });

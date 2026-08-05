@@ -15,6 +15,7 @@ const respinButtonStyle =
 type TheWeekProps = {
   cookingDays: CookingDay[];
   mealBank: Meal[];
+  spinOnArrival?: boolean;
 };
 
 const drawnOn = (week: Week | null, day: CookingDay) =>
@@ -27,9 +28,17 @@ const readOutDay = ({ day, meal }: Week[number]) =>
 
 const readOut = (week: Week) => week.map(readOutDay).join(", ");
 
-export const TheWeek = ({ cookingDays, mealBank }: TheWeekProps) => {
+export const TheWeek = ({
+  cookingDays,
+  mealBank,
+  spinOnArrival = false,
+}: TheWeekProps) => {
   const [week, setWeek] = useState<Week | null>(null);
-  const [landing, setLanding] = useState<Week | null>(null);
+  const [landing, setLanding] = useState<Week | null>(() =>
+    spinOnArrival && mealBank.length > 0
+      ? spin(mealBank, cookingDays, Math.random)
+      : null,
+  );
   const [spun, setSpun] = useState(0);
   const [respun, setRespun] = useState<Partial<Record<CookingDay, number>>>({});
   const [said, setSaid] = useState("");
