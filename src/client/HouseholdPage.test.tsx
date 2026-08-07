@@ -14,6 +14,7 @@ import {
   aHousehold,
   aMeal,
   aSlug,
+  aStockedHousehold,
   withAShareSheet,
   withNoSharing,
 } from "./test-fixtures";
@@ -50,7 +51,7 @@ describe("a Household page", () => {
   });
 
   it("shows the whole week, marking the days it does not cook", async () => {
-    render(thePage(householdsInMemory({ ...aHousehold, mealBank: [aMeal] })));
+    render(thePage(householdsInMemory(aStockedHousehold)));
 
     expect(await screen.findByText("Sunday")).toBeInTheDocument();
     for (const day of ["Monday", "Tuesday", "Wednesday", "Thursday"]) {
@@ -112,7 +113,7 @@ describe("a Household page", () => {
   });
 
   it("carries the count of Meals on the Meal Bank button", async () => {
-    render(thePage(householdsInMemory({ ...aHousehold, mealBank: [aMeal] })));
+    render(thePage(householdsInMemory(aStockedHousehold)));
 
     expect(
       await screen.findByRole("button", { name: /meal bank, 1 meal/i }),
@@ -123,7 +124,7 @@ describe("a Household page", () => {
     const go = vi.fn();
 
     render(
-      thePage(householdsInMemory({ ...aHousehold, mealBank: [aMeal] }), {
+      thePage(householdsInMemory(aStockedHousehold), {
         onGo: go,
       }),
     );
@@ -137,16 +138,9 @@ describe("a Household page", () => {
 
   it("curates the Meal Bank on its own page, under the Household name", async () => {
     render(
-      thePage(
-        householdsInMemory({
-          ...aHousehold,
-          name: "The Khans",
-          mealBank: [aMeal],
-        }),
-        {
-          view: "meal-bank",
-        },
-      ),
+      thePage(householdsInMemory({ ...aStockedHousehold, name: "The Khans" }), {
+        view: "meal-bank",
+      }),
     );
 
     expect(
@@ -177,11 +171,7 @@ describe("a Household page", () => {
   it("spins a Week out of the Household's own Meal Bank", async () => {
     render(
       thePage(
-        householdsInMemory({
-          ...aHousehold,
-          cookingDays: ["sunday"],
-          mealBank: [aMeal],
-        }),
+        householdsInMemory({ ...aStockedHousehold, cookingDays: ["sunday"] }),
       ),
     );
 
@@ -199,13 +189,7 @@ describe("a Household page", () => {
     const share = withAShareSheet();
 
     render(
-      thePage(
-        householdsInMemory({
-          ...aHousehold,
-          name: "The Khans",
-          mealBank: [aMeal],
-        }),
-      ),
+      thePage(householdsInMemory({ ...aStockedHousehold, name: "The Khans" })),
     );
 
     await userEvent.click(
@@ -256,7 +240,7 @@ describe("a Household page", () => {
 
   it("says so when the lookup fails", async () => {
     const households = householdsInMemory(aHousehold);
-    vi.spyOn(households, "open").mockRejectedValue(new Error("offline"));
+    households.failNextOpen();
 
     render(thePage(households));
 
@@ -283,7 +267,7 @@ describe("the first run of a Household", () => {
   });
 
   it("leaves a Household that already holds Meals alone", async () => {
-    render(thePage(householdsInMemory({ ...aHousehold, mealBank: [aMeal] })));
+    render(thePage(householdsInMemory(aStockedHousehold)));
 
     await screen.findByRole("button", { name: /spin the week/i });
     expect(theGuide()).not.toBeInTheDocument();
