@@ -28,12 +28,6 @@ const sending = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export const createHousehold = async (): Promise<Household> => {
-  const response = await fetch("/api/households", { method: "POST" });
-  if (!response.ok) return refuse(response);
-  return householdSchema.parse(await response.json());
-};
-
 export const fetchHousehold = async (
   slug: Slug,
   signal?: AbortSignal,

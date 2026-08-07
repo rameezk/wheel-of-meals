@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
+import type { Households } from "./households";
 import { HouseholdPage } from "./HouseholdPage";
 import { LandingPage } from "./LandingPage";
 import { routeFromPath } from "./route";
 
-export const App = () => {
+type AppProps = { households: Households };
+
+export const App = ({ households }: AppProps) => {
   const [pathname, setPathname] = useState(window.location.pathname);
 
   useEffect(() => {
@@ -22,6 +25,6 @@ export const App = () => {
   return route ? (
     <HouseholdPage slug={route.slug} view={route.view} onGo={go} />
   ) : (
-    <LandingPage onGo={go} />
+    <LandingPage households={households} onGo={go} />
   );
 };
