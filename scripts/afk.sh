@@ -97,6 +97,11 @@ You have no GitHub credential and no network route to GitHub. Do not run \`gh\`,
 do not run \`git push\`, and do not try to open a pull request. The script that
 started you does all of that itself, once it has checked your commit.
 
+You are running inside the repository's devshell, so every tool the repository
+declares is already on the path, and you have no network. Do not run \`nix\`,
+\`nix develop\`, or \`direnv\`. A ticket that changes \`flake.nix\` edits the file
+and leaves evaluating it to the operator; updating \`flake.lock\` is human work.
+
 Other branches in this run are being cut from the same \`main\`, so numbered
 files are allocated to you rather than inferred. Every number below these is
 already taken, on \`main\` or on a sibling branch you cannot see:
@@ -363,11 +368,13 @@ main() {
   [[ "$cap" =~ ^[1-9][0-9]*$ ]] || usage
 
   local tool
-  for tool in gh git jq claude lsof; do
-    command -v "$tool" >/dev/null || die "$tool is not on the path"
+  for tool in gh git jq claude lsof timeout; do
+    command -v "$tool" >/dev/null && continue
+    case "$tool" in
+      claude) die "claude is not on the path; it is the one tool the devshell does not supply - install it with its own installer and re-run" ;;
+      *) die "$tool is not on the path; the repository's devshell supplies it - direnv loads that shell on entering the directory, or run this under 'nix develop -c'" ;;
+    esac
   done
-  command -v timeout >/dev/null ||
-    die "timeout is not on the path; it is what bounds each session, and it ships with coreutils - add coreutils to your home-manager packages and re-run"
 
   local root
   root=$(git rev-parse --show-toplevel) || die "not inside a git repository"

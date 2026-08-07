@@ -44,6 +44,11 @@ Randomise your meals for the week.
 - The script pushes the branch and opens the pull request. The session has no
   GitHub credential and no route to GitHub - do not run `gh`, `git push`, or
   try to open a pull request from inside one.
+- The session runs inside the repository's devshell, with every tool the
+  repository declares already on the path, and has no network. Do not run `nix`,
+  `nix develop`, or `direnv`. A ticket that changes `flake.nix` edits the file
+  and leaves evaluating it to the operator, so updating `flake.lock` is human
+  work and never queued for the loop.
 - The script checks the branch first: one commit ahead of `origin/main`, clean
   tree, conventional subject with no issue number, last line `Fixes #N`. A
   branch that fails any of those is discarded and no pull request is opened.
