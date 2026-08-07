@@ -16,13 +16,29 @@ jobs:
   check:
     name: Lint, typecheck and test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: nix develop --command bash -e {0}
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - uses: nix-community/cache-nix-action@v6
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          primary-key: devshell-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          restore-prefixes-first-match: devshell-${{ runner.os }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: Build the devshell
+        run: |
+          command -v node && node --version
+          command -v shellcheck && shellcheck --version
 
       - run: npm ci
 
@@ -57,13 +73,29 @@ jobs:
     environment:
       name: production
       url: https://wheel-of-meals.rameezkhan.dev
+    defaults:
+      run:
+        shell: nix develop --command bash -e {0}
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v7
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - uses: nix-community/cache-nix-action@v6
         with:
-          node-version-file: .nvmrc
-          cache: npm
+          primary-key: devshell-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          restore-prefixes-first-match: devshell-${{ runner.os }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: Build the devshell
+        run: |
+          command -v node && node --version
+          command -v shellcheck && shellcheck --version
 
       - run: npm ci
 

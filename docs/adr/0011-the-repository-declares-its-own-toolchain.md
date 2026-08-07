@@ -91,14 +91,13 @@ same condition, which is that the product starts modelling them.
 
 ## Consequences
 
-`.nvmrc` still says `24` while `flake.nix` says `nodejs_24`, and neither is
-obviously authoritative. The duplication is deliberate and temporary: CI's
-`actions/setup-node` still reads `.nvmrc`, and moving CI into the devshell is a
-CI change that does not belong in the same pull request as the flake it depends
-on. Issue #60 runs CI inside `nix develop` and deletes `.nvmrc`, and until it
-lands, a reader should treat the flake as the intent and `.nvmrc` as the thing
-CI happens to read. That interval is the reason this record is written now
-rather than deferred to the successor.
+The flake is the only declaration of the Node version. For a short interval
+`.nvmrc` said `24` alongside `flake.nix`'s `nodejs_24`, because CI's
+`actions/setup-node` read it and moving CI into the devshell did not belong in
+the same pull request as the flake it depends on. Issue #60 closed that
+interval: every CI step now runs under `nix develop`, so Node and ShellCheck
+come from `flake.lock` in CI exactly as they do locally, and `.nvmrc` is
+deleted. A toolchain upgrade is one lock file change.
 
 Updating `flake.lock` is human work and stays off the ready queue. An unattended
 session runs with no network and is now told not to run `nix`, `nix develop` or
@@ -122,5 +121,5 @@ one executable change - the reworked precondition loop - is covered by
 `shellcheck scripts/*.sh` in `npm run lint`, which is already wired into CI, and
 which now finds its ShellCheck in the devshell on a developer machine.
 `nix flake check` is not added either: with a single `devShells.default` output
-it evaluates the flake and little else, and its value arrives for free with #60,
-where CI builds the shell on every job.
+it evaluates the flake and little else, and its value arrives for free now that
+CI builds the shell on every job.
