@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { householdsOverHttp } from "./households-over-http";
+import type { Households } from "./households";
 import { HouseholdPage } from "./HouseholdPage";
 import { LandingPage } from "./LandingPage";
 import { routeFromPath } from "./route";
 
-export const App = () => {
+type AppProps = { households: Households };
+
+export const App = ({ households }: AppProps) => {
   const [pathname, setPathname] = useState(window.location.pathname);
 
   useEffect(() => {
@@ -25,9 +27,9 @@ export const App = () => {
       slug={route.slug}
       view={route.view}
       onGo={go}
-      households={householdsOverHttp}
+      households={households}
     />
   ) : (
-    <LandingPage onGo={go} />
+    <LandingPage households={households} onGo={go} />
   );
 };

@@ -12,6 +12,7 @@ type Trouble = NamedRefusal | "failure";
 export type HouseholdsInMemory = Households & {
   refuseNextChange: (refusal: NamedRefusal) => void;
   failNextChange: () => void;
+  failNextOpen: () => void;
 };
 
 const anEpoch = "2026-08-04T12:00:00.000Z";
@@ -47,6 +48,7 @@ export const householdsInMemory = (
   }
 
   let trouble: Trouble | null = null;
+  let openFailing = false;
   let created = 0;
 
   const freshId = (): string => {
@@ -92,7 +94,13 @@ export const householdsInMemory = (
         return household;
       }),
 
-    open: (slug) => Promise.resolve(held.get(slug) ?? null),
+    open: (slug) => {
+      const failing = openFailing;
+      openFailing = false;
+      return failing
+        ? Promise.reject(new Error("The Worker is unreachable"))
+        : Promise.resolve(held.get(slug) ?? null);
+    },
 
     update: (slug, changes) =>
       change(() => {
@@ -150,6 +158,10 @@ export const householdsInMemory = (
 
     failNextChange: () => {
       trouble = "failure";
+    },
+
+    failNextOpen: () => {
+      openFailing = true;
     },
   };
 };

@@ -2,8 +2,8 @@ import { useState, type FormEvent } from "react";
 import { failure } from "../shared/api";
 import type { Household } from "../shared/household";
 import { readSlug, type Slug } from "../shared/slug";
-import { createHousehold, fetchHousehold, messageFor } from "./api";
 import { AppShell } from "./AppShell";
+import { messageFor, type Households } from "./households";
 import { remembered } from "./remembered";
 import { alertStyle, fieldStyle, loudButtonStyle } from "./styles";
 
@@ -90,7 +90,12 @@ const SlugReveal = ({ slug }: { slug: Slug }) => {
   );
 };
 
-const SlugEntry = ({ onGo }: { onGo: (path: string) => void }) => {
+type SlugEntryProps = {
+  households: Households;
+  onGo: (path: string) => void;
+};
+
+const SlugEntry = ({ households, onGo }: SlugEntryProps) => {
   const [typed, setTyped] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
@@ -107,7 +112,7 @@ const SlugEntry = ({ onGo }: { onGo: (path: string) => void }) => {
     setOpening(true);
     setProblem(null);
     try {
-      if ((await fetchHousehold(slug)) === null) setProblem(noSuchHousehold);
+      if ((await households.open(slug)) === null) setProblem(noSuchHousehold);
       else onGo(`/${slug}`);
     } catch {
       setProblem(failure.message);
@@ -147,16 +152,19 @@ const SlugEntry = ({ onGo }: { onGo: (path: string) => void }) => {
   );
 };
 
-type LandingPageProps = { onGo: (path: string) => void };
+type LandingPageProps = {
+  households: Households;
+  onGo: (path: string) => void;
+};
 
-export const LandingPage = ({ onGo }: LandingPageProps) => {
+export const LandingPage = ({ households, onGo }: LandingPageProps) => {
   const [creation, setCreation] = useState<Creation>({ state: "idle" });
   const [lastOpened] = useState(remembered);
 
   const create = async () => {
     setCreation({ state: "creating" });
     try {
-      setCreation({ state: "created", household: await createHousehold() });
+      setCreation({ state: "created", household: await households.create() });
     } catch (error) {
       setCreation({
         state: "failed",
@@ -207,7 +215,7 @@ export const LandingPage = ({ onGo }: LandingPageProps) => {
           <span className="h-px flex-1 bg-stone-800" />
         </div>
 
-        <SlugEntry onGo={onGo} />
+        <SlugEntry households={households} onGo={onGo} />
       </div>
     </AppShell>
   );
