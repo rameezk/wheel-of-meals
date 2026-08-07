@@ -67,3 +67,13 @@ the end-to-end suite against the live hostname. It needs two repository secrets:
 
 The hostname is permanent (ADR-0004) and every page is `noindex` because the URL
 is the only credential (ADR-0002).
+
+## Previews
+
+Every pull request uploads a version of a separate `wheel-of-meals-preview`
+Worker, aliased `pr-<number>`, and gets a comment linking to
+`https://pr-<number>-wheel-of-meals-preview.rameezk.workers.dev`. It runs against
+a second D1 database that production never touches, seeded by
+`scripts/preview-seed.sql` with one Household so a review opens on a populated
+app. The alias keeps the URL stable across pushes, so the comment is posted once
+and nothing has to be torn down. See ADR-0014.

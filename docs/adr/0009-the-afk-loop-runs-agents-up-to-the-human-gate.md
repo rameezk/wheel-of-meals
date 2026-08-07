@@ -11,7 +11,16 @@ merge, and nothing about the loop moves that boundary - it only fills the queue
 of things waiting at it. The script owns the push and `gh pr create`; the agent
 owns neither, and runs with no GitHub credential and no route to GitHub at all.
 So agent-authored change cannot reach `main`, and therefore production, without
-a person having read it. That is the same position
+a person having read it.
+
+That claim is about where the change lands, not about what runs. Since
+[ADR-0014](0014-every-pull-request-gets-a-preview.md), agent-authored code is
+executed by a pull request job holding an account-wide Cloudflare token before
+anybody has read it, and that job writes to a preview Worker and a preview
+database. Production's hostname and production's database still sit behind the
+merge, which is the part this record was ever about; ADR-0014 carries the
+reasoning and the accounting of what the token exposes. The position above is
+the same one
 [ADR-0006](0006-main-is-squash-only-and-unversioned.md) arrived at
 independently when it kept required approvals at `0`: the click is the review.
 
