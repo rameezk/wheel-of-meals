@@ -107,7 +107,9 @@ behind it.
 The repository settings and the `default` ruleset are now coupled: `squash` is
 the only method permitted in both. Changing either alone leaves no legal merge
 method and nothing can land on `main` at all, so they move together or not at
-all.
+all. Repository visibility is the third member of that set, because the ruleset
+is enforced only while the repository is public -
+[ADR-0013](0013-the-repository-is-public-deliberately.md) has the reasoning.
 
 A pull request title and body are permanent, and are written accordingly -
 `AGENTS.md` states the rules. The body is the only prose that reaches `main`, so
