@@ -131,9 +131,13 @@ migrations run as part of deploy rather than by hand.
 - **Integration** - Hono routes against a real local D1 via
   `@cloudflare/vitest-pool-workers`. Slug lookup, caps and duplicate rejection
   are proven here.
-- **End-to-end** - Playwright, one happy path only: create → first run → spin →
-  five days. It exists to prove the Worker serves the SPA and the API from a
-  single deploy, which is the least-proven assumption in the stack.
+- **End-to-end** - Playwright, one happy path: create → first run → spin → five
+  days. It exists to prove the Worker serves the SPA and the API from a single
+  deploy, which is the least-proven assumption in the stack. A second spec joins
+  it only for an invariant no lower seam can see, because it depends on a real
+  engine resolving real CSS; `e2e/fields.spec.ts` and
+  [ADR-0012](adr/0012-the-app-never-suppresses-pinch-zoom.md) are the standing
+  example. Anything provable in `vitest` still belongs there.
 
 ## Deliberately later
 
