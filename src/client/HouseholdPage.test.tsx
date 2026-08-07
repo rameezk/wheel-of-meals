@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { tooManyRequests } from "../shared/api";
 import type { Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { HouseholdPage } from "./HouseholdPage";
@@ -235,6 +236,17 @@ describe("a Household page", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /opens nothing/i,
+    );
+  });
+
+  it("passes on the Worker's sentence when the lookup is refused", async () => {
+    const households = householdsInMemory(aHousehold);
+    households.refuseNextOpen(tooManyRequests);
+
+    render(thePage(households));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      tooManyRequests.message,
     );
   });
 

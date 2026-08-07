@@ -1,5 +1,4 @@
 import { useState, type FormEvent } from "react";
-import { failure } from "../shared/api";
 import type { Household } from "../shared/household";
 import { readSlug, type Slug } from "../shared/slug";
 import { AppShell } from "./AppShell";
@@ -114,8 +113,8 @@ const SlugEntry = ({ households, onGo }: SlugEntryProps) => {
     try {
       if ((await households.open(slug)) === null) setProblem(noSuchHousehold);
       else onGo(`/${slug}`);
-    } catch {
-      setProblem(failure.message);
+    } catch (error) {
+      setProblem(messageFor(error));
     } finally {
       setOpening(false);
     }
