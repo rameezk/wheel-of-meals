@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
+import { householdsInMemory } from "./households-in-memory";
 import { remembered } from "./remembered";
 import {
   aHousehold,
@@ -23,7 +24,7 @@ describe("the app", () => {
   it("offers the create button at the root", () => {
     visit("/");
 
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     expect(
       screen.getByRole("button", { name: /create a household/i }),
@@ -34,7 +35,7 @@ describe("the app", () => {
     answerWith(aHousehold);
 
     visit(`/${aSlug}`);
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     expect(await screen.findByText(aSlug)).toBeInTheDocument();
   });
@@ -43,7 +44,7 @@ describe("the app", () => {
     answerWith(aHousehold);
 
     visit(`/${aSlug}/settings`);
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     expect(await screen.findByLabelText(/name/i)).toBeInTheDocument();
   });
@@ -52,7 +53,7 @@ describe("the app", () => {
     answerWith(aHousehold);
 
     visit(`/${aSlug}/meal-bank`);
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     expect(await screen.findByLabelText("Filter")).toBeInTheDocument();
   });
@@ -61,7 +62,7 @@ describe("the app", () => {
     answerWith(aStockedHousehold);
 
     visit(`/${aSlug}`);
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     await userEvent.click(
       await screen.findByRole("button", { name: /meal bank/i }),
@@ -80,7 +81,7 @@ describe("the app", () => {
     answerWith(aStockedHousehold);
 
     visit(`/${aSlug}`);
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     await userEvent.click(
       await screen.findByRole("button", { name: /settings/i }),
@@ -108,7 +109,7 @@ describe("the app", () => {
     );
 
     visit(`/${aSlug}/settings`);
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     await userEvent.type(await screen.findByLabelText(/name/i), "The Khans");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -122,10 +123,10 @@ describe("the app", () => {
   });
 
   it("opens the Household whose Slug was typed in, and remembers it", async () => {
-    answerInTurn({ body: aStockedHousehold }, { body: aStockedHousehold });
+    answerWith(aStockedHousehold);
 
     visit("/");
-    render(<App />);
+    render(<App households={householdsInMemory(aStockedHousehold)} />);
 
     await userEvent.type(
       screen.getByLabelText(/four words/i),
@@ -145,7 +146,7 @@ describe("the app", () => {
   it("falls back to the start for a path that is not a Slug", () => {
     visit("/nonsense");
 
-    render(<App />);
+    render(<App households={householdsInMemory()} />);
 
     expect(
       screen.getByRole("button", { name: /create a household/i }),
