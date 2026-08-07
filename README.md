@@ -10,15 +10,22 @@ the domain language, and [`docs/adr/`](docs/adr/) for the decisions.
 
 ## Running it
 
-Requires Node 24 (see `.nvmrc`) and [ShellCheck](https://www.shellcheck.net/),
-which `npm run lint` uses on the scripts under `scripts/`.
+The repository declares its own toolchain - Node, ShellCheck, `jq`, `gh`,
+`git`, `lsof` and coreutils - in [`flake.nix`](flake.nix), pinned by
+`flake.lock`. [direnv](https://direnv.net/) loads it on entering the directory,
+so the tools appear when you arrive and leave when you go. See
+[ADR-0011](docs/adr/0011-the-repository-declares-its-own-toolchain.md).
 
 ```sh
-npm install
+direnv allow         # per clone, and untracked; or `nix develop` for one shell
+npm install          # node modules stay a deliberate step, not a side effect
 npm run dev          # Vite dev server, proxying /api to wrangler
 npm run dev:worker   # the Worker, in another terminal
 npm run preview      # production build, served by the Worker as it ships
 ```
+
+The one tool the devshell does not supply is `claude`, which `scripts/afk.sh`
+invokes and which ships with its own installer.
 
 ## Checks
 
