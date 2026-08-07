@@ -7,8 +7,10 @@ import {
   type Household,
   type UpdateHousehold,
 } from "../shared/household";
-import { messageFor, updateHousehold } from "./api";
+import { messageFor } from "./api";
 import { dayLabels } from "./days";
+import type { Households } from "./households";
+import { householdsOverHttp } from "./households-over-http";
 import {
   alertStyle,
   fieldStyle,
@@ -23,12 +25,14 @@ type HouseholdSettingsProps = {
   household: Household;
   onChange: (household: Household) => void;
   onDone: () => void;
+  households?: Households;
 };
 
 export const HouseholdSettings = ({
   household,
   onChange,
   onDone,
+  households = householdsOverHttp,
 }: HouseholdSettingsProps) => {
   const [name, setName] = useState(household.name ?? "");
   const [days, setDays] = useState<CookingDay[]>(household.cookingDays);
@@ -63,7 +67,7 @@ export const HouseholdSettings = ({
     setSaving(true);
     setProblem(null);
     try {
-      onChange(await updateHousehold(household.slug, wanted));
+      onChange(await households.update(household.slug, wanted));
       onDone();
     } catch (error) {
       setProblem(messageFor(error));

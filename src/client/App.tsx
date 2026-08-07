@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { householdsOverHttp } from "./households-over-http";
 import { HouseholdPage } from "./HouseholdPage";
 import { LandingPage } from "./LandingPage";
 import { routeFromPath } from "./route";
@@ -20,7 +21,12 @@ export const App = () => {
   const route = routeFromPath(pathname);
 
   return route ? (
-    <HouseholdPage slug={route.slug} view={route.view} onGo={go} />
+    <HouseholdPage
+      slug={route.slug}
+      view={route.view}
+      onGo={go}
+      households={householdsOverHttp}
+    />
   ) : (
     <LandingPage onGo={go} />
   );
