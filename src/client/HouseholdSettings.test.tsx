@@ -1,162 +1,172 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CookingDay, Household } from "../shared/household";
+import { invalidHousehold } from "../shared/api";
+import type { Household } from "../shared/household";
 import { dayLabels } from "./days";
-import { HouseholdSettings } from "./HouseholdSettings";
-import { aHousehold, aSlug, answerInTurn } from "./test-fixtures";
+import { HouseholdPage } from "./HouseholdPage";
+import type { Households } from "./households";
+import { householdsInMemory } from "./households-in-memory";
+import type { View } from "./route";
+import { aSlug, aStockedHousehold } from "./test-fixtures";
 
-const showSettings = (
-  household: Household = aHousehold,
-  onChange = vi.fn(),
-  onDone = vi.fn(),
+const thePage = (
+  households: Households,
+  onGo: (path: string) => void,
+  view: View = "settings",
+) => (
+  <HouseholdPage slug={aSlug} view={view} onGo={onGo} households={households} />
+);
+
+const atSettings = async (
+  households = householdsInMemory(aStockedHousehold),
 ) => {
-  render(
-    <HouseholdSettings
-      household={household}
-      onChange={onChange}
-      onDone={onDone}
-    />,
-  );
-  return { onChange, onDone };
-};
-
-const sentBody = () => {
-  const body = vi.mocked(globalThis.fetch).mock.calls[0]?.[1]?.body;
-  return JSON.parse(typeof body === "string" ? body : "{}") as {
-    name?: string | null;
-    cookingDays?: CookingDay[];
+  const onGo = vi.fn();
+  const { rerender } = render(thePage(households, onGo));
+  await screen.findByLabelText(/name/i);
+  return {
+    households,
+    onGo,
+    atTheHousehold: () => rerender(thePage(households, onGo, "household")),
   };
 };
 
-const pressSave = () =>
-  userEvent.click(screen.getByRole("button", { name: /save/i }));
+const held = (seed: Partial<Household>) =>
+  householdsInMemory({ ...aStockedHousehold, ...seed });
+
+const typeName = (name: string) =>
+  userEvent.type(screen.getByLabelText(/name/i), name);
+
+const toggle = (day: string) =>
+  userEvent.click(screen.getByRole("checkbox", { name: day }));
+
+const saveButton = () => screen.getByRole("button", { name: /save/i });
+
+const pressSave = () => userEvent.click(saveButton());
+
+const dayRow = (day: string) => screen.getByText(day).closest("li");
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
-describe("Household settings", () => {
-  it("saves a name the Household did not have", async () => {
-    answerInTurn({ body: { ...aHousehold, name: "The Khans" } });
-    const { onChange } = showSettings();
-
-    await userEvent.type(screen.getByLabelText(/name/i), "The Khans");
-    await pressSave();
-
-    const [url, options] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
-    expect(url).toBe(`/api/households/${aSlug}`);
-    expect(options?.method).toBe("PATCH");
-    expect(sentBody()).toEqual({ name: "The Khans" });
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ name: "The Khans" }),
-    );
-  });
-
-  it("starts from the name and Cooking Days the Household already has", () => {
-    showSettings({ ...aHousehold, name: "The Khans" });
+describe("the settings of a Household", () => {
+  it("starts from the name and Cooking Days the Household already has", async () => {
+    await atSettings(held({ name: "The Khans" }));
 
     expect(screen.getByLabelText(/name/i)).toHaveValue("The Khans");
     expect(screen.getByRole("checkbox", { name: "Sunday" })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: "Friday" })).not.toBeChecked();
   });
 
-  it("offers every day of the week to choose from", () => {
-    showSettings();
+  it("offers every day of the week to choose from", async () => {
+    await atSettings();
 
     expect(screen.getAllByRole("checkbox")).toHaveLength(7);
   });
 
-  it("sends only what changed, so a partner's edit is not overwritten", async () => {
-    answerInTurn({ body: { ...aHousehold, cookingDays: ["monday"] } });
-    showSettings({ ...aHousehold, name: "The Khans" });
+  it("saves a name the Household did not have, and shows it at once", async () => {
+    const { households, onGo } = await atSettings();
+    const updating = vi.spyOn(households, "update");
 
-    await userEvent.click(screen.getByRole("checkbox", { name: "Friday" }));
+    await typeName("The Khans");
     await pressSave();
 
-    expect(sentBody()).toEqual({
-      cookingDays: [...aHousehold.cookingDays, "friday"],
+    expect(updating).toHaveBeenCalledWith(aSlug, { name: "The Khans" });
+    expect(
+      await screen.findByRole("heading", { name: "The Khans" }),
+    ).toBeInTheDocument();
+    expect(onGo).toHaveBeenCalledWith(`/${aSlug}`);
+  });
+
+  it("shows the new Week the moment the Cooking Days are saved", async () => {
+    const { atTheHousehold } = await atSettings();
+
+    await toggle("Friday");
+    await pressSave();
+    atTheHousehold();
+
+    expect(dayRow("Friday")).not.toHaveTextContent(/not cooking/i);
+    expect(dayRow("Saturday")).toHaveTextContent(/not cooking/i);
+  });
+
+  it("saves only what changed, so a partner's edit is not overwritten", async () => {
+    const { households } = await atSettings(held({ name: "The Khans" }));
+    const updating = vi.spyOn(households, "update");
+
+    await toggle("Friday");
+    await pressSave();
+
+    expect(updating).toHaveBeenCalledWith(aSlug, {
+      cookingDays: [...aStockedHousehold.cookingDays, "friday"],
     });
   });
 
-  it("sends nothing at all when nothing was changed", async () => {
-    answerInTurn({ body: aHousehold });
-    const { onDone } = showSettings();
-
-    await pressSave();
-
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-    expect(onDone).toHaveBeenCalled();
-  });
-
   it("saves any subset of the seven days, in week order", async () => {
-    answerInTurn({ body: { ...aHousehold, cookingDays: ["monday"] } });
-    showSettings();
+    const { households } = await atSettings();
+    const updating = vi.spyOn(households, "update");
 
     for (const day of ["Sunday", "Tuesday", "Wednesday", "Thursday"])
-      await userEvent.click(screen.getByRole("checkbox", { name: day }));
-    await userEvent.click(screen.getByRole("checkbox", { name: "Saturday" }));
+      await toggle(day);
+    await toggle("Saturday");
     await pressSave();
 
-    expect(sentBody().cookingDays).toEqual(["monday", "saturday"]);
-  });
-
-  it("refuses to save a Household that cooks on no day", async () => {
-    answerInTurn({ body: aHousehold });
-    showSettings();
-
-    for (const day of aHousehold.cookingDays)
-      await userEvent.click(
-        screen.getByRole("checkbox", { name: dayLabels[day] }),
-      );
-
-    expect(screen.getByRole("button", { name: /save/i })).toBeDisabled();
-    expect(screen.getByRole("alert")).toHaveTextContent(/at least one day/i);
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(updating).toHaveBeenCalledWith(aSlug, {
+      cookingDays: ["monday", "saturday"],
+    });
   });
 
   it("clears the name back to nothing when it is emptied", async () => {
-    answerInTurn({ body: aHousehold });
-    showSettings({ ...aHousehold, name: "The Khans" });
+    const { households } = await atSettings(held({ name: "The Khans" }));
+    const updating = vi.spyOn(households, "update");
 
     await userEvent.clear(screen.getByLabelText(/name/i));
     await pressSave();
 
-    expect(sentBody().name).toBeNull();
+    expect(updating).toHaveBeenCalledWith(aSlug, { name: null });
   });
 
-  it("leaves the settings behind once the change lands", async () => {
-    answerInTurn({ body: { ...aHousehold, name: "The Khans" } });
-    const { onDone } = showSettings();
+  it("asks the Worker for nothing at all when nothing was changed", async () => {
+    const { households, onGo } = await atSettings();
+    const updating = vi.spyOn(households, "update");
 
-    await userEvent.type(screen.getByLabelText(/name/i), "The Khans");
     await pressSave();
 
-    expect(onDone).toHaveBeenCalled();
+    expect(updating).not.toHaveBeenCalled();
+    expect(onGo).toHaveBeenCalledWith(`/${aSlug}`);
   });
 
-  it("stays put and says why when the save is refused", async () => {
-    answerInTurn({
-      body: { error: "invalid_household", message: "That name is too long." },
-      status: 400,
-    });
-    const { onChange, onDone } = showSettings();
+  it("refuses to save a Household that cooks on no day", async () => {
+    const { households } = await atSettings();
+    const updating = vi.spyOn(households, "update");
 
-    await userEvent.type(screen.getByLabelText(/name/i), "The Khans");
+    for (const day of aStockedHousehold.cookingDays)
+      await toggle(dayLabels[day]);
+
+    expect(saveButton()).toBeDisabled();
+    expect(screen.getByRole("alert")).toHaveTextContent(/at least one day/i);
+    expect(updating).not.toHaveBeenCalled();
+  });
+
+  it("stays put and passes on the Worker's own sentence when refused", async () => {
+    const { households, onGo } = await atSettings();
+    const refusal = invalidHousehold("That name is too long.");
+    households.refuseNextChange(refusal);
+
+    await typeName("The Khans");
     await pressSave();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "That name is too long.",
-    );
-    expect(onChange).not.toHaveBeenCalled();
-    expect(onDone).not.toHaveBeenCalled();
+    expect(await screen.findByRole("alert")).toHaveTextContent(refusal.message);
+    expect(screen.getByRole("heading", { name: aSlug })).toBeInTheDocument();
+    expect(onGo).not.toHaveBeenCalled();
   });
 
   it("says something went wrong when the save cannot be sent", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
-    showSettings();
+    const { households } = await atSettings();
+    households.failNextChange();
 
-    await userEvent.type(screen.getByLabelText(/name/i), "The Khans");
+    await typeName("The Khans");
     await pressSave();
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
@@ -164,13 +174,24 @@ describe("Household settings", () => {
     );
   });
 
-  it("leaves without saving when the change is abandoned", async () => {
-    const { onChange, onDone } = showSettings();
+  it("holds Save back while a save is still in flight", async () => {
+    const { households } = await atSettings();
+    vi.spyOn(households, "update").mockReturnValue(new Promise(() => {}));
 
-    await userEvent.type(screen.getByLabelText(/name/i), "The Khans");
+    await typeName("The Khans");
+    await pressSave();
+
+    expect(saveButton()).toBeDisabled();
+  });
+
+  it("leaves without saving when the change is abandoned", async () => {
+    const { households, onGo } = await atSettings();
+    const updating = vi.spyOn(households, "update");
+
+    await typeName("The Khans");
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
 
-    expect(onDone).toHaveBeenCalled();
-    expect(onChange).not.toHaveBeenCalled();
+    expect(onGo).toHaveBeenCalledWith(`/${aSlug}`);
+    expect(updating).not.toHaveBeenCalled();
   });
 });
