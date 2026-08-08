@@ -1,6 +1,16 @@
-import { SELF } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
 
 const origin = "https://example.com";
+
+export const ceiling = {
+  creation: env.CEILINGS.HOUSEHOLD_CREATION.limit,
+  writes: env.CEILINGS.HOUSEHOLD_WRITES.limit,
+  reads: env.CEILINGS.HOUSEHOLD_READS.limit,
+};
+
+const overshoot = 4;
+
+export const justPast = (limit: number) => limit + overshoot;
 
 export const from = (ip: string) => ({ "cf-connecting-ip": ip });
 
