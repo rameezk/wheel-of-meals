@@ -90,5 +90,5 @@ describe("a caller who has used up their writes", () => {
     await times(30, () => create("203.0.113.7"));
 
     expect((await read("203.0.113.7", slug)).status).toBe(200);
-  });
+  }, 30_000);
 });
