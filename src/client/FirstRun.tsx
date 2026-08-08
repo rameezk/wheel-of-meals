@@ -3,7 +3,6 @@ import { mealNameMaxLength, type Meal } from "../shared/meal";
 import type { Slug } from "../shared/slug";
 import { messageFor } from "./api";
 import type { Households } from "./households";
-import { householdsOverHttp } from "./households-over-http";
 import { mealsHeld } from "./meals";
 import { mealSuggestions } from "./suggestions";
 import {
@@ -21,7 +20,7 @@ type FirstRunProps = {
   onChange: (meals: Meal[]) => void;
   onSpin: () => void;
   onSkip: () => void;
-  households?: Households;
+  households: Households;
 };
 
 const suggestionStyle = `${quietButtonStyle} gap-1.5 hover:text-emerald-200 disabled:opacity-50`;
@@ -32,7 +31,7 @@ export const FirstRun = ({
   onChange,
   onSpin,
   onSkip,
-  households = householdsOverHttp,
+  households,
 }: FirstRunProps) => {
   const [typed, setTyped] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
