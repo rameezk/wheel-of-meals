@@ -1,8 +1,7 @@
 import { useId, useState, type FormEvent } from "react";
 import { mealNameMaxLength, type Meal } from "../shared/meal";
 import type { Slug } from "../shared/slug";
-import { messageFor } from "./api";
-import type { Households } from "./households";
+import { messageFor, type Households } from "./households";
 import { mealsHeld } from "./meals";
 import { mealSuggestions } from "./suggestions";
 import {

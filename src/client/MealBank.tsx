@@ -7,8 +7,7 @@ import {
 import type { Slug } from "../shared/slug";
 import { narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import { messageFor, type MealDraft } from "./api";
-import type { Households } from "./households";
+import { messageFor, type Households, type MealDraft } from "./households";
 import {
   alertStyle,
   fieldStyle,
