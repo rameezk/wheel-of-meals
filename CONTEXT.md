@@ -9,7 +9,8 @@ list of meals a household likes and drawing a random week's worth from it on dem
 The durable root of the system: the group of people who cook and eat together.
 A Household owns a [[Meal Bank]] and a set of [[Cooking Days]], and is identified
 by its [[Slug]]. It may also carry a display name, which is decoration only -
-nothing is identified by it.
+nothing is identified by it. The client never reaches a Household directly; it
+goes through the [[Households Port]].
 _Avoid_: family, group, account, user, team
 
 **Meal Bank**:
@@ -45,3 +46,21 @@ The four-word, randomly generated, food-themed phrase that identifies a
 [[Household]] and is the sole means of access to it. Possession of the Slug is
 the only credential; there are no accounts and no passwords.
 _Avoid_: id, code, key, link
+
+**Households Port**:
+The client's whole vocabulary for reaching a [[Household]]: create one, open the
+one a [[Slug]] names, rename it, set its [[Cooking Days]], and add, edit or
+remove a [[Meal]] in its [[Meal Bank]]. It is a client-side interface, not the
+Worker's HTTP API: the HTTP API is merely what one [[Adapter]] happens to speak,
+and the Port names what the client needs rather than what the Worker exposes. A
+[[Spin]] is not on it, because a Spin is drawn in the browser and never leaves
+it. Plural because it addresses any Household by [[Slug]] rather than standing
+for one of them.
+_Avoid_: client, service, repository, gateway, API
+
+**Adapter**:
+One implementation of the [[Households Port]]. There are two: one that speaks to
+the Worker over HTTP, and one that holds Households in memory for the tests. The
+client is written against the Port alone, so the two are interchangeable and the
+tests need no Worker.
+_Avoid_: driver, backend, provider, implementation, mock, stub
