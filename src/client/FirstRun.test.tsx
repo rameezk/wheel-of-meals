@@ -1,41 +1,32 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { duplicateMeal } from "../shared/api";
 import type { Meal } from "../shared/meal";
-import { FirstRun } from "./FirstRun";
+import { HouseholdPage } from "./HouseholdPage";
+import {
+  householdsInMemory,
+  type HouseholdsInMemory,
+} from "./households-in-memory";
 import { mealSuggestions } from "./suggestions";
-import { aSlug, answerInTurn, answerWith } from "./test-fixtures";
+import { aHousehold, aSlug } from "./test-fixtures";
 
 const aSuggestion = mealSuggestions[0];
 
-const Guiding = ({
-  held = [],
-  onSpin = () => {},
-  onSkip = () => {},
-}: {
-  held?: Meal[];
-  onSpin?: () => void;
-  onSkip?: () => void;
-}) => {
-  const [meals, setMeals] = useState(held);
-  return (
-    <FirstRun
-      slug={aSlug}
-      meals={meals}
-      onChange={setMeals}
-      onSpin={onSpin}
-      onSkip={onSkip}
-    />
-  );
-};
+const anEmptyHousehold = () => householdsInMemory(aHousehold);
 
-const landed = (name: string): Meal => ({
-  id: `meal-${name}`,
-  name,
-  description: null,
-});
+const guide = async (households: HouseholdsInMemory = anEmptyHousehold()) => {
+  render(
+    <HouseholdPage
+      slug={aSlug}
+      view="household"
+      onGo={() => {}}
+      households={households}
+    />,
+  );
+  await screen.findByRole("list", { name: "Suggestions" });
+  return households;
+};
 
 const tap = (name: string) =>
   userEvent.click(screen.getByRole("button", { name: `Add ${name}` }));
@@ -55,25 +46,26 @@ const banked = () =>
 
 afterEach(() => {
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 describe("the first run", () => {
-  it("asks for the Meals the Household cooks often", () => {
-    render(<Guiding />);
+  it("asks for the Meals the Household cooks often", async () => {
+    await guide();
 
     expect(
       screen.getByRole("heading", { name: /what do you cook often/i }),
     ).toBeInTheDocument();
   });
 
-  it("never asks for a Household name, which waits in the settings", () => {
-    render(<Guiding />);
+  it("never asks for a Household name, which waits in the settings", async () => {
+    await guide();
 
     expect(screen.queryByLabelText(/household name/i)).not.toBeInTheDocument();
   });
 
-  it("offers a suggestion for every dish it knows", () => {
-    render(<Guiding />);
+  it("offers a suggestion for every dish it knows", async () => {
+    await guide();
 
     for (const name of mealSuggestions)
       expect(
@@ -81,33 +73,29 @@ describe("the first run", () => {
       ).toBeInTheDocument();
   });
 
-  it("pre-fills none of them, so the Bank starts empty", () => {
-    render(<Guiding />);
+  it("pre-fills none of them, so the Bank starts empty", async () => {
+    await guide();
 
     expect(theBank()).not.toBeInTheDocument();
     expect(screen.getByLabelText("Or add your own")).toHaveValue("");
   });
 
-  it("banks a suggestion in a single tap", async () => {
-    answerWith(landed(aSuggestion));
+  it("banks a suggestion in a single tap, through the port", async () => {
+    const households = anEmptyHousehold();
+    const adding = vi.spyOn(households, "addMeal");
 
-    render(<Guiding />);
+    await guide(households);
     await tap(aSuggestion);
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      `/api/households/${aSlug}/meals`,
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ name: aSuggestion, description: "" }),
-      }),
-    );
+    expect(adding).toHaveBeenCalledWith(aSlug, {
+      name: aSuggestion,
+      description: "",
+    });
     expect(screen.getByText(/1 meal in the meal bank/i)).toBeInTheDocument();
   });
 
   it("stops offering a suggestion once it has been banked", async () => {
-    answerWith(landed(aSuggestion));
-
-    render(<Guiding />);
+    await guide();
     await tap(aSuggestion);
 
     expect(
@@ -115,34 +103,33 @@ describe("the first run", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("offers no suggestion the Household already holds", () => {
-    render(<Guiding held={[landed(aSuggestion.toUpperCase())]} />);
+  it("offers no suggestion the Bank already holds, whatever its case", async () => {
+    await guide();
+    await typeIn(aSuggestion.toLowerCase());
+    await pressAdd();
 
     expect(
       screen.queryByRole("button", { name: `Add ${aSuggestion}` }),
     ).not.toBeInTheDocument();
   });
 
-  it("takes a Meal nobody suggested, typed in by hand", async () => {
-    answerWith(landed("Bunny chow"));
+  it("takes a Meal nobody suggested, typed in by hand, through the port", async () => {
+    const households = anEmptyHousehold();
+    const adding = vi.spyOn(households, "addMeal");
 
-    render(<Guiding />);
+    await guide(households);
     await typeIn("Bunny chow");
     await pressAdd();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      `/api/households/${aSlug}/meals`,
-      expect.objectContaining({
-        body: JSON.stringify({ name: "Bunny chow", description: "" }),
-      }),
-    );
+    expect(adding).toHaveBeenCalledWith(aSlug, {
+      name: "Bunny chow",
+      description: "",
+    });
     expect(screen.getByText("Bunny chow")).toBeInTheDocument();
   });
 
   it("empties the field after a typed Meal lands, ready for the next", async () => {
-    answerWith(landed("Bunny chow"));
-
-    render(<Guiding />);
+    await guide();
     await typeIn("Bunny chow");
     await pressAdd();
 
@@ -150,30 +137,31 @@ describe("the first run", () => {
   });
 
   it("will not send a Meal with no name", async () => {
-    const fetching = answerWith(landed("Bunny chow"));
+    const households = anEmptyHousehold();
+    const adding = vi.spyOn(households, "addMeal");
 
-    render(<Guiding />);
+    await guide(households);
     await typeIn("   ");
     await pressAdd();
 
-    expect(fetching).not.toHaveBeenCalled();
+    expect(adding).not.toHaveBeenCalled();
   });
 
-  it("gathers taps and typing into the one Bank", async () => {
-    answerInTurn({ body: landed(aSuggestion) }, { body: landed("Bunny chow") });
-
-    render(<Guiding />);
+  it("gathers taps and typing into the one Bank, counting as it goes", async () => {
+    await guide();
     await tap(aSuggestion);
     await typeIn("Bunny chow");
     await pressAdd();
 
     expect(banked()).toEqual([aSuggestion, "Bunny chow"]);
+    expect(screen.getByText(/2 meals in the meal bank/i)).toBeInTheDocument();
   });
 
   it("says why a Meal was refused, and keeps what was typed", async () => {
-    answerWith(duplicateMeal, 409);
+    const households = anEmptyHousehold();
+    households.refuseNextChange(duplicateMeal);
 
-    render(<Guiding />);
+    await guide(households);
     await typeIn("Bunny chow");
     await pressAdd();
 
@@ -181,37 +169,55 @@ describe("the first run", () => {
     expect(screen.getByLabelText("Or add your own")).toHaveValue("Bunny chow");
   });
 
-  it("holds the Spin back until the Bank has something to draw from", () => {
-    render(<Guiding />);
+  it("closes adding off while a Meal is still on its way", async () => {
+    const households = anEmptyHousehold();
+    let land: (meal: Meal) => void = () => {};
+    vi.spyOn(households, "addMeal").mockReturnValue(
+      new Promise<Meal>((resolve) => {
+        land = resolve;
+      }),
+    );
+
+    await guide(households);
+    await typeIn("Bunny chow");
+    await tap(aSuggestion);
+
+    expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: `Add ${aSuggestion}` }),
+    ).toBeDisabled();
+
+    land({ id: "meal-1", name: aSuggestion, description: null });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /^add$/i })).toBeEnabled(),
+    );
+  });
+
+  it("holds the Spin back until the Bank has something to draw from", async () => {
+    await guide();
 
     expect(
       screen.getByRole("button", { name: /spin the week/i }),
     ).toBeDisabled();
   });
 
-  it("goes straight into a Spin once a Meal is in", async () => {
-    const spin = vi.fn();
-    answerWith(landed(aSuggestion));
-
-    render(<Guiding onSpin={spin} />);
+  it("opens the Spin up once a Meal is in", async () => {
+    await guide();
     await tap(aSuggestion);
-    await userEvent.click(
-      screen.getByRole("button", { name: /spin the week/i }),
-    );
 
-    expect(spin).toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /spin the week/i }),
+    ).toBeEnabled();
   });
 
-  it("can be skipped, with an empty Bank and no Spin", async () => {
-    const skip = vi.fn();
-    const spin = vi.fn();
-
-    render(<Guiding onSpin={spin} onSkip={skip} />);
+  it("can be skipped, leaving the Bank empty and the Week unspun", async () => {
+    await guide();
     await userEvent.click(
       screen.getByRole("button", { name: /skip for now/i }),
     );
 
-    expect(skip).toHaveBeenCalled();
-    expect(spin).not.toHaveBeenCalled();
+    expect(theBank()).not.toBeInTheDocument();
+    expect(screen.getByText(/add a meal to the meal bank/i)).toBeVisible();
   });
 });
