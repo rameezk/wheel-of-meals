@@ -1,12 +1,13 @@
 import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { duplicateMeal, mealBankFull } from "../shared/api";
 import type { Meal } from "../shared/meal";
-import { MealBank } from "./MealBank";
+import { HouseholdPage } from "./HouseholdPage";
+import { householdsInMemory } from "./households-in-memory";
 import { landedHighlightMillis } from "./motion";
 import { landedRowStyle } from "./styles";
-import { aMeal, aSlug, answerInTurn } from "./test-fixtures";
+import { aHousehold, aMeal, aSlug } from "./test-fixtures";
 
 const lasagne: Meal = { id: "meal-2", name: "Lasagne", description: null };
 
@@ -16,25 +17,31 @@ const aubergine: Meal = {
   description: null,
 };
 
-const HoldingBank = ({ held }: { held: Meal[] }) => {
-  const [meals, setMeals] = useState(held);
-  return (
-    <MealBank
-      slug={aSlug}
-      meals={meals}
-      onChange={setMeals}
-      onBack={() => {}}
-    />
-  );
-};
+const showBank = async (meals: Meal[] = []) => {
+  const households = householdsInMemory({ ...aHousehold, mealBank: meals });
 
-const showBank = (meals: Meal[] = []) => render(<HoldingBank held={meals} />);
+  render(
+    <HouseholdPage
+      slug={aSlug}
+      view="meal-bank"
+      onGo={() => {}}
+      households={households}
+    />,
+  );
+  await screen.findByLabelText("Filter");
+
+  return households;
+};
 
 const typeName = (name: string) =>
   userEvent.type(screen.getByLabelText(/meal/i), name);
 
-const pressAdd = () =>
-  userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+const addButton = () => screen.getByRole("button", { name: /^add$/i });
+
+const pressAdd = () => userEvent.click(addButton());
+
+const press = (name: string) =>
+  userEvent.click(screen.getByRole("button", { name }));
 
 const filterBy = (text: string) =>
   userEvent.type(screen.getByLabelText("Filter"), text);
@@ -52,50 +59,48 @@ afterEach(() => {
 });
 
 describe("the Meal Bank", () => {
-  it("counts what it holds", () => {
-    showBank([aMeal, lasagne]);
+  it("counts what it holds", async () => {
+    await showBank([aMeal, lasagne]);
 
     expect(screen.getByText("2 Meals")).toBeInTheDocument();
   });
 
-  it("counts a single Meal in the singular", () => {
-    showBank([aMeal]);
+  it("counts a single Meal in the singular", async () => {
+    await showBank([aMeal]);
 
     expect(screen.getByText("1 Meal")).toBeInTheDocument();
   });
 
-  it("lists every Meal it holds with its description", () => {
-    showBank([aMeal, lasagne]);
+  it("lists every Meal it holds with its description", async () => {
+    await showBank([aMeal, lasagne]);
 
     expect(screen.getByText(aMeal.name)).toBeInTheDocument();
     expect(screen.getByText(String(aMeal.description))).toBeInTheDocument();
     expect(screen.getByText(lasagne.name)).toBeInTheDocument();
   });
 
-  it("points an empty Bank at adding the first Meal", () => {
-    showBank();
+  it("points an empty Bank at adding the first Meal", async () => {
+    await showBank();
 
     expect(screen.getByText(/no meals yet/i)).toBeInTheDocument();
   });
 
   it("adds a Meal without sending the rest of the Bank", async () => {
-    answerInTurn({ body: lasagne, status: 201 });
-    showBank([aMeal]);
+    const households = await showBank([aMeal]);
+    const adding = vi.spyOn(households, "addMeal");
 
     await typeName("Lasagne");
     await pressAdd();
 
     expect(await screen.findByText("Lasagne")).toBeInTheDocument();
-    const [url, options] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
-    expect(url).toBe(`/api/households/${aSlug}/meals`);
-    expect(options?.body).toBe(
-      JSON.stringify({ name: "Lasagne", description: "" }),
-    );
+    expect(adding).toHaveBeenCalledWith(aSlug, {
+      name: "Lasagne",
+      description: "",
+    });
   });
 
   it("empties the form after a Meal lands, ready for the next one", async () => {
-    answerInTurn({ body: lasagne, status: 201 });
-    showBank();
+    await showBank();
 
     await typeName("Lasagne");
     await pressAdd();
@@ -105,87 +110,136 @@ describe("the Meal Bank", () => {
   });
 
   it("says why a duplicate was refused and keeps what was typed", async () => {
-    answerInTurn({
-      body: { error: "duplicate_meal", message: "That Meal is already in it." },
-      status: 409,
-    });
-    showBank([aMeal]);
+    const households = await showBank([aMeal]);
+    households.refuseNextChange(duplicateMeal);
 
     await typeName("butter chicken");
     await pressAdd();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/already/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      duplicateMeal.message,
+    );
     expect(screen.getByLabelText(/meal/i)).toHaveValue("butter chicken");
   });
 
+  it("says why a full Meal Bank has no room for another", async () => {
+    const households = await showBank([aMeal]);
+    households.refuseNextChange(mealBankFull);
+
+    await typeName("Lasagne");
+    await pressAdd();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      mealBankFull.message,
+    );
+  });
+
   it("will not send a Meal with no name", async () => {
-    answerInTurn({ body: lasagne, status: 201 });
-    showBank();
+    const households = await showBank();
+    const adding = vi.spyOn(households, "addMeal");
 
     await pressAdd();
 
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(adding).not.toHaveBeenCalled();
+  });
+
+  it("refuses a second Add while the first is still in flight", async () => {
+    const households = await showBank();
+    vi.spyOn(households, "addMeal").mockReturnValue(
+      new Promise<Meal>(() => {}),
+    );
+
+    await typeName("Lasagne");
+    await pressAdd();
+
+    expect(addButton()).toBeDisabled();
   });
 
   it("edits a Meal in place", async () => {
-    const edited = { ...aMeal, name: "Butter Chicken" };
-    answerInTurn({ body: edited });
-    showBank([aMeal]);
+    const households = await showBank([aMeal]);
+    const editing = vi.spyOn(households, "editMeal");
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
-    );
+    await press(`Edit ${aMeal.name}`);
     const name = screen.getByLabelText(/^name$/i);
     await userEvent.clear(name);
     await userEvent.type(name, "Butter Chicken");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
 
     expect(await screen.findByText("Butter Chicken")).toBeInTheDocument();
-    const [url, options] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
-    expect(url).toBe(`/api/households/${aSlug}/meals/${aMeal.id}`);
-    expect(options?.method).toBe("PATCH");
+    expect(screen.getByText(String(aMeal.description))).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
+    expect(editing).toHaveBeenCalledWith(aSlug, aMeal.id, {
+      name: "Butter Chicken",
+      description: aMeal.description,
+    });
   });
 
   it("leaves the Meal as it was when an edit is abandoned", async () => {
-    answerInTurn({ body: aMeal });
-    showBank([aMeal]);
+    const households = await showBank([aMeal]);
+    const editing = vi.spyOn(households, "editMeal");
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
-    );
+    await press(`Edit ${aMeal.name}`);
     const name = screen.getByLabelText(/^name$/i);
     await userEvent.clear(name);
     await userEvent.type(name, "Something else");
     await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
 
     expect(screen.getByText(aMeal.name)).toBeInTheDocument();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(editing).not.toHaveBeenCalled();
   });
 
   it("deletes a Meal only once the deletion is confirmed", async () => {
-    answerInTurn({ status: 204 });
-    showBank([aMeal, lasagne]);
+    const households = await showBank([aMeal, lasagne]);
+    const removing = vi.spyOn(households, "removeMeal");
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
-    );
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    await press(`Delete ${aMeal.name}`);
+    expect(removing).not.toHaveBeenCalled();
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Yes, delete ${aMeal.name}` }),
-    );
+    await press(`Yes, delete ${aMeal.name}`);
 
     await vi.waitFor(() =>
       expect(screen.queryByText(aMeal.name)).not.toBeInTheDocument(),
     );
     expect(screen.getByText(lasagne.name)).toBeInTheDocument();
-    const [url, options] = vi.mocked(globalThis.fetch).mock.calls[0] ?? [];
-    expect(url).toBe(`/api/households/${aSlug}/meals/${aMeal.id}`);
-    expect(options?.method).toBe("DELETE");
+    expect(removing).toHaveBeenCalledWith(aSlug, aMeal.id);
+  });
+
+  it("keeps the Meal when the deletion is backed out of", async () => {
+    const households = await showBank([aMeal]);
+    const removing = vi.spyOn(households, "removeMeal");
+
+    await press(`Delete ${aMeal.name}`);
+    await press(`Keep ${aMeal.name}`);
+
+    expect(screen.getByText(aMeal.name)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
+    ).toBeInTheDocument();
+    expect(removing).not.toHaveBeenCalled();
+  });
+
+  it("clears what was refused as soon as the cook moves on", async () => {
+    const households = await showBank([aMeal]);
+    households.refuseNextChange(duplicateMeal);
+
+    await typeName("butter chicken");
+    await pressAdd();
+    await screen.findByRole("alert");
+    await press(`Edit ${aMeal.name}`);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    households.refuseNextChange(duplicateMeal);
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await pressAdd();
+    await screen.findByRole("alert");
+    await press(`Delete ${aMeal.name}`);
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("narrows the Bank to the Meals whose name the filter matches", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("lasa");
 
@@ -194,7 +248,7 @@ describe("the Meal Bank", () => {
   });
 
   it("matches anywhere in the name, ignoring case and surrounding space", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("  CHICKEN  ");
 
@@ -208,20 +262,18 @@ describe("the Meal Bank", () => {
       name: "Butter chicken curry",
       description: null,
     };
-    showBank([aMeal, lasagne, curry]);
+    await showBank([aMeal, lasagne, curry]);
 
     await filterBy("butter");
 
-    expect(
-      screen.getAllByRole("listitem").map((held) => held.textContent),
-    ).toEqual([
+    expect(rows().map((held) => held.textContent)).toEqual([
       expect.stringContaining(aMeal.name),
       expect.stringContaining(curry.name),
     ]);
   });
 
   it("does not match a Meal on its description", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("coconut");
 
@@ -230,7 +282,7 @@ describe("the Meal Bank", () => {
   });
 
   it("says how much of the Bank the filter is showing", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("lasa");
 
@@ -238,7 +290,7 @@ describe("the Meal Bank", () => {
   });
 
   it("still says a filter is on when it happens to match everything", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("n");
 
@@ -246,11 +298,9 @@ describe("the Meal Bank", () => {
   });
 
   it("drops a pending edit when the filter narrows past it", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
-    );
+    await press(`Edit ${aMeal.name}`);
     await filterBy("lasa");
     await userEvent.clear(screen.getByLabelText("Filter"));
 
@@ -260,11 +310,9 @@ describe("the Meal Bank", () => {
   });
 
   it("disarms a pending deletion when the filter narrows past it", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
-    );
+    await press(`Delete ${aMeal.name}`);
     await filterBy("lasa");
     await userEvent.clear(screen.getByLabelText("Filter"));
 
@@ -274,17 +322,17 @@ describe("the Meal Bank", () => {
   });
 
   it("says so when the filter matches nothing, rather than looking empty", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("sushi");
 
     expect(screen.getByText(/no meal matches/i)).toBeInTheDocument();
-    expect(screen.queryByRole("listitem")).not.toBeInTheDocument();
+    expect(rows()).toHaveLength(0);
     expect(screen.getByText("0 of 2 Meals")).toBeInTheDocument();
   });
 
   it("shows the whole Bank again once the filter is cleared", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("lasa");
     await userEvent.clear(screen.getByLabelText("Filter"));
@@ -295,17 +343,16 @@ describe("the Meal Bank", () => {
   });
 
   it("never seeds the add form from the filter", async () => {
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("sushi");
 
     expect(screen.getByLabelText(/meal/i)).toHaveValue("");
-    expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
+    expect(addButton()).toBeDisabled();
   });
 
   it("highlights a Meal that lands, where the list put it", async () => {
-    answerInTurn({ body: aubergine, status: 201 });
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await typeName(aubergine.name);
     await pressAdd();
@@ -321,8 +368,7 @@ describe("the Meal Bank", () => {
 
   it("lets the highlight settle on its own, with nothing to press", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    answerInTurn({ body: lasagne, status: 201 });
-    showBank([aMeal]);
+    await showBank([aMeal]);
 
     await typeName(lasagne.name);
     await pressAdd();
@@ -336,8 +382,7 @@ describe("the Meal Bank", () => {
   });
 
   it("says a Meal landed, for anyone who cannot see the highlight", async () => {
-    answerInTurn({ body: lasagne, status: 201 });
-    showBank([aMeal]);
+    await showBank([aMeal]);
 
     expect(announcement()).toBe("");
 
@@ -349,11 +394,7 @@ describe("the Meal Bank", () => {
   });
 
   it("carries the highlight to the second Meal added, leaving the first", async () => {
-    answerInTurn(
-      { body: lasagne, status: 201 },
-      { body: aubergine, status: 201 },
-    );
-    showBank([aMeal]);
+    await showBank([aMeal]);
 
     await typeName(lasagne.name);
     await pressAdd();
@@ -369,26 +410,25 @@ describe("the Meal Bank", () => {
   });
 
   it("highlights nothing when the add is refused", async () => {
-    answerInTurn({
-      body: { error: "duplicate_meal", message: "That Meal is already in it." },
-      status: 409,
-    });
-    showBank([aMeal]);
+    const households = await showBank([aMeal]);
+    households.refuseNextChange(duplicateMeal);
 
     await typeName(aMeal.name);
     await pressAdd();
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(/already/i);
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      duplicateMeal.message,
+    );
     expect(highlightedRow()).toBeNull();
   });
 
   it("highlights nothing when a Meal is edited", async () => {
-    answerInTurn({ body: { ...aMeal, name: "Butter Chicken" } });
-    showBank([aMeal]);
+    await showBank([aMeal]);
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
-    );
+    await press(`Edit ${aMeal.name}`);
+    const name = screen.getByLabelText(/^name$/i);
+    await userEvent.clear(name);
+    await userEvent.type(name, "Butter Chicken");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await screen.findByText("Butter Chicken");
@@ -396,23 +436,17 @@ describe("the Meal Bank", () => {
   });
 
   it("highlights nothing when a Meal is deleted", async () => {
-    answerInTurn({ status: 204 });
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
-    await userEvent.click(
-      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", { name: `Yes, delete ${aMeal.name}` }),
-    );
+    await press(`Delete ${aMeal.name}`);
+    await press(`Yes, delete ${aMeal.name}`);
 
     await vi.waitFor(() => expect(rows()).toHaveLength(1));
     expect(highlightedRow()).toBeNull();
   });
 
   it("lifts a filter that would have hidden the Meal just added", async () => {
-    answerInTurn({ body: aubergine, status: 201 });
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("lasa");
     await typeName(aubergine.name);
@@ -425,8 +459,7 @@ describe("the Meal Bank", () => {
   });
 
   it("leaves a filter the Meal just added matches", async () => {
-    answerInTurn({ body: aubergine, status: 201 });
-    showBank([aMeal, lasagne]);
+    await showBank([aMeal, lasagne]);
 
     await filterBy("bake");
     await typeName(aubergine.name);
@@ -438,27 +471,9 @@ describe("the Meal Bank", () => {
     expect(rows()).toHaveLength(1);
   });
 
-  it("goes back to the Household from the pinned line", async () => {
-    const back = vi.fn();
-    render(
-      <MealBank
-        slug={aSlug}
-        meals={[aMeal]}
-        onChange={() => {}}
-        onBack={back}
-      />,
-    );
-
-    await userEvent.click(
-      screen.getByRole("button", { name: /back to the household/i }),
-    );
-
-    expect(back).toHaveBeenCalled();
-  });
-
   it("says so when the Bank cannot be reached", async () => {
-    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
-    showBank();
+    const households = await showBank();
+    households.failNextChange();
 
     await typeName("Lasagne");
     await pressAdd();
