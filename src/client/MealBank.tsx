@@ -9,7 +9,6 @@ import { narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
 import { messageFor, type MealDraft } from "./api";
 import type { Households } from "./households";
-import { householdsOverHttp } from "./households-over-http";
 import {
   alertStyle,
   fieldStyle,
@@ -25,7 +24,7 @@ type MealBankProps = {
   meals: Meal[];
   onChange: (meals: Meal[]) => void;
   onBack: () => void;
-  households?: Households;
+  households: Households;
 };
 
 const byName = (one: Meal, other: Meal) =>
@@ -124,7 +123,7 @@ export const MealBank = ({
   meals,
   onChange,
   onBack,
-  households = householdsOverHttp,
+  households,
 }: MealBankProps) => {
   const [draft, setDraft] = useState<MealDraft>({ name: "", description: "" });
   const [filter, setFilter] = useState("");
