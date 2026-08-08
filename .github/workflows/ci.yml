@@ -65,6 +65,83 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+  preview:
+    name: Publish a preview
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      PREVIEW_ALIAS: pr-${{ github.event.pull_request.number }}
+      PREVIEW_SLUG: warm-buttered-crusty-bread
+    defaults:
+      run:
+        shell: nix develop --command bash -e {0}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - uses: nix-community/cache-nix-action@v6
+        with:
+          primary-key: devshell-${{ runner.os }}-${{ hashFiles('flake.nix', 'flake.lock') }}
+          restore-prefixes-first-match: devshell-${{ runner.os }}-
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: npm-${{ runner.os }}-
+
+      - name: Build the devshell
+        run: |
+          command -v node && node --version
+          command -v shellcheck && shellcheck --version
+
+      - run: npm ci
+
+      - name: Migrate the preview database
+        run: npm run preview:migrate
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Seed the preview database
+        run: npm run preview:seed
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Build and upload the preview version
+        run: |
+          npm run build
+          if npx wrangler deployments list --env preview >/dev/null 2>&1; then
+            echo "The preview Worker is there; uploading a version of it."
+          else
+            echo "The preview Worker does not exist yet; deploying once to create it."
+            npx wrangler deploy --env preview
+          fi
+          npx wrangler versions upload --env preview --preview-alias "$PREVIEW_ALIAS"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Comment the preview URL once
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          marker='<!-- preview-url -->'
+          posted=$(gh pr view "$PR_NUMBER" --json comments --jq "[.comments[] | select(.body | contains(\"$marker\"))] | length")
+          if [ "$posted" != "0" ]; then
+            echo "The preview URL has already been commented."
+            exit 0
+          fi
+          url="https://$PREVIEW_ALIAS-wheel-of-meals-preview.rameezk.workers.dev/$PREVIEW_SLUG"
+          body=$(printf '%s\n[Preview this pull request](%s) on a seeded Household.\n\nThe URL stays the same as you push, so this comment is posted once.\n' "$marker" "$url")
+          gh pr comment "$PR_NUMBER" --body "$body"
+
   deploy:
     name: Deploy to production
     needs: check

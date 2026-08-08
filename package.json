@@ -9,6 +9,8 @@
     "build": "vite build",
     "preview": "npm run build && npm run db:migrate:local && wrangler dev",
     "deploy": "npm run build && wrangler d1 migrations apply wheel-of-meals --remote && wrangler deploy",
+    "preview:migrate": "wrangler d1 migrations apply wheel-of-meals-preview --remote --env preview",
+    "preview:seed": "wrangler d1 execute wheel-of-meals-preview --remote --env preview --yes --file scripts/preview-seed.sql",
     "typecheck": "wrangler types && tsc --build --force",
     "lint": "eslint . && prettier --check . && shellcheck scripts/*.sh",
     "format": "prettier --write .",
