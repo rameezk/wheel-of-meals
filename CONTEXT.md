@@ -64,3 +64,16 @@ the Worker over HTTP, and one that holds Households in memory for the tests. The
 client is written against the Port alone, so the two are interchangeable and the
 tests need no Worker.
 _Avoid_: driver, backend, provider, implementation, mock, stub
+
+**Open Household**:
+The [[Household]] this browser has opened with its [[Slug]], held for as long as
+the cook is on it, together with everything they can do to it: rename it, set its
+[[Cooking Days]], and add, edit or remove a [[Meal]] in its [[Meal Bank]].
+Opening a Slug yields one of four things - a lookup still running, nothing found,
+a lookup that failed, or an Open Household - and only the last carries the
+Household and those verbs, so nothing further in is handed a Household that is
+not there. It holds the [[Meal Bank]] and patches it as each change lands rather
+than opening the Household again, and it is the one place a refusal from the
+[[Households Port]] becomes a sentence a cook reads. It is also what remembers
+the Household on the device, and what forgets a Slug that opens nothing.
+_Avoid_: session, current household, context, store, state
