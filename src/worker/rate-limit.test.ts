@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { tooManyRequests } from "../shared/api";
 import {
   addMeal,
+  ceiling,
   create,
   createdSlug,
+  justPast,
   read,
   refused,
   request,
@@ -11,10 +13,15 @@ import {
   withinOneWindow,
 } from "./test-callers";
 
+const pastCreation = justPast(ceiling.creation);
+const pastWrites = justPast(ceiling.writes);
+
 describe("rate limiting Household creation", () => {
   it("refuses a burst with a comprehensible 429", async () => {
     const [first] = refused(
-      await withinOneWindow(() => times(30, () => create("203.0.113.1"))),
+      await withinOneWindow(() =>
+        times(pastCreation, () => create("203.0.113.1")),
+      ),
     );
 
     expect(first).toBeDefined();
@@ -22,15 +29,19 @@ describe("rate limiting Household creation", () => {
   });
 
   it("leaves another caller alone", async () => {
-    await times(30, () => create("203.0.113.2"));
+    await times(pastCreation, () => create("203.0.113.2"));
 
     expect((await create("203.0.113.3")).status).toBe(201);
   });
 
-  it("lets one caller create a Household several times over", async () => {
-    expect(refused(await times(10, () => create("203.0.113.4")))).toHaveLength(
-      0,
-    );
+  it("lets one caller create a Household up to the ceiling", async () => {
+    expect(
+      refused(
+        await withinOneWindow(() =>
+          times(ceiling.creation, () => create("203.0.113.4")),
+        ),
+      ),
+    ).toHaveLength(0);
   });
 });
 
@@ -40,27 +51,33 @@ describe("rate limiting Meal Bank writes", () => {
 
     const [first] = refused(
       await withinOneWindow((attempt) =>
-        times(150, (n) => addMeal("203.0.113.5", slug, `Meal ${attempt}-${n}`)),
+        times(pastWrites, (n) =>
+          addMeal("203.0.113.5", slug, `Meal ${attempt}-${n}`),
+        ),
       ),
     );
 
     expect(first).toBeDefined();
     expect(await first?.json()).toEqual(tooManyRequests);
-  }, 60_000);
+  });
 
-  it("allows far more of them than a Household ever adds by hand", async () => {
+  it("lets a Household add Meals up to the ceiling", async () => {
     const slug = await createdSlug("203.0.113.8");
 
-    const responses = await times(60, (n) =>
-      addMeal("203.0.113.8", slug, `Meal ${n}`),
-    );
-
-    expect(refused(responses)).toHaveLength(0);
-  }, 30_000);
+    expect(
+      refused(
+        await withinOneWindow((attempt) =>
+          times(ceiling.writes, (n) =>
+            addMeal("203.0.113.8", slug, `Meal ${attempt}-${n}`),
+          ),
+        ),
+      ),
+    ).toHaveLength(0);
+  });
 
   it("counts separately from Household creation", async () => {
     const slug = await createdSlug("203.0.113.6");
-    await times(30, () => create("203.0.113.6"));
+    await times(pastCreation, () => create("203.0.113.6"));
 
     expect((await addMeal("203.0.113.6", slug, "Ramen")).status).toBe(201);
   });
@@ -69,16 +86,20 @@ describe("rate limiting Meal Bank writes", () => {
 describe("a write to a path that routes nowhere", () => {
   it("is still counted, so a crawler cannot probe for free", async () => {
     const responses = await withinOneWindow(() =>
-      times(150, (n) => request(`/api/nothing/${n}`, "POST", "203.0.113.9")),
+      times(pastWrites, (n) =>
+        request(`/api/nothing/${n}`, "POST", "203.0.113.9"),
+      ),
     );
 
     expect(refused(responses).length).toBeGreaterThan(0);
-  }, 60_000);
+  });
 });
 
 describe("a request that did not arrive through Cloudflare", () => {
   it("is left alone, having no caller to count against", async () => {
-    const responses = await times(30, () => request("/api/households", "POST"));
+    const responses = await times(pastCreation, () =>
+      request("/api/households", "POST"),
+    );
 
     expect(refused(responses)).toHaveLength(0);
   });
@@ -87,8 +108,8 @@ describe("a request that did not arrive through Cloudflare", () => {
 describe("a caller who has used up their writes", () => {
   it("can still read the Household they were working on", async () => {
     const slug = await createdSlug("203.0.113.7");
-    await times(30, () => create("203.0.113.7"));
+    await times(pastCreation, () => create("203.0.113.7"));
 
     expect((await read("203.0.113.7", slug)).status).toBe(200);
-  }, 30_000);
+  });
 });
