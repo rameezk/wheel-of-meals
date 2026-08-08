@@ -17,8 +17,13 @@ that a preview version of production sits in production's version list, one
 dashboard click from being promoted to live. A version of a different Worker
 cannot be promoted onto the production hostname at all, whatever is clicked.
 
-The preview environment sets `workers_dev: true` and carries no `routes`.
-Production keeps its custom domain and gains no `workers.dev` address, so
+The preview environment sets `workers_dev: true` and declares `"routes": []`.
+The empty list is load-bearing rather than decoration: `routes` is one of the
+fields a named environment *does* inherit, so an absent `routes` under
+`env.preview` is not "no routes" but production's custom domain, and deploying
+the environment would reassign `wheel-of-meals.rameezkhan.dev` away from the
+production Worker. Wrangler warns about exactly this at upload. With the empty
+list, production keeps its custom domain and gains no `workers.dev` address, so
 [ADR-0004](0004-the-hostname-is-permanent.md) is untouched: the permanent
 hostname is still the only one a [[Household]] link can be built on.
 
@@ -30,6 +35,14 @@ find out. `assets` is inherited; that was read off
 carries a note saying so and `assets` carries none, rather than assumed. A
 preview serving the API and no frontend would have been a miserable thing to
 debug.
+
+`wrangler versions upload` refuses to upload a version of a Worker that does not
+exist, which every first run of this job is. The job deploys the environment once
+to bring the Worker into being and then uploads, rather than leaving a manual
+`wrangler deploy --env preview` written down somewhere for the operator to
+remember. It is guarded on `wrangler deployments list`, so it is a bootstrap
+rather than a deploy on every pull request: the root `workers.dev` address is
+whatever created the Worker, and the aliased URLs are the ones anybody is given.
 
 The URL is stable because the upload passes `--preview-alias pr-<number>`, so
 one comment never goes stale and later pushes post nothing. Cloudflare keeps the

@@ -48,6 +48,7 @@
     "preview": {
       "name": "wheel-of-meals-preview",
       "workers_dev": true,
+      "routes": [],
       "d1_databases": [
         {
           "binding": "DB",

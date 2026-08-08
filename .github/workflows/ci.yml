@@ -116,6 +116,12 @@ jobs:
       - name: Build and upload the preview version
         run: |
           npm run build
+          if npx wrangler deployments list --env preview >/dev/null 2>&1; then
+            echo "The preview Worker is there; uploading a version of it."
+          else
+            echo "The preview Worker does not exist yet; deploying once to create it."
+            npx wrangler deploy --env preview
+          fi
           npx wrangler versions upload --env preview --preview-alias "$PREVIEW_ALIAS"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
