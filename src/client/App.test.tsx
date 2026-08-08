@@ -4,13 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 import { householdsInMemory } from "./households-in-memory";
 import { remembered } from "./remembered";
-import {
-  aHousehold,
-  aSlug,
-  aStockedHousehold,
-  answerInTurn,
-  answerWith,
-} from "./test-fixtures";
+import { aHousehold, aSlug, aStockedHousehold } from "./test-fixtures";
 
 const visit = (path: string) => window.history.pushState({}, "", path);
 
@@ -32,37 +26,29 @@ describe("the app", () => {
   });
 
   it("opens the Household a Slug URL points at", async () => {
-    answerWith(aHousehold);
-
     visit(`/${aSlug}`);
-    render(<App households={householdsInMemory()} />);
+    render(<App households={householdsInMemory(aHousehold)} />);
 
     expect(await screen.findByText(aSlug)).toBeInTheDocument();
   });
 
   it("opens the settings at the settings URL", async () => {
-    answerWith(aHousehold);
-
     visit(`/${aSlug}/settings`);
-    render(<App households={householdsInMemory()} />);
+    render(<App households={householdsInMemory(aHousehold)} />);
 
     expect(await screen.findByLabelText(/name/i)).toBeInTheDocument();
   });
 
   it("opens the Meal Bank at its own URL", async () => {
-    answerWith(aHousehold);
-
     visit(`/${aSlug}/meal-bank`);
-    render(<App households={householdsInMemory()} />);
+    render(<App households={householdsInMemory(aHousehold)} />);
 
     expect(await screen.findByLabelText("Filter")).toBeInTheDocument();
   });
 
   it("gives the Meal Bank its own place in the history", async () => {
-    answerWith(aStockedHousehold);
-
     visit(`/${aSlug}`);
-    render(<App households={householdsInMemory()} />);
+    render(<App households={householdsInMemory(aStockedHousehold)} />);
 
     await userEvent.click(
       await screen.findByRole("button", { name: /meal bank/i }),
@@ -78,10 +64,8 @@ describe("the app", () => {
   });
 
   it("gives the settings their own place in the history", async () => {
-    answerWith(aStockedHousehold);
-
     visit(`/${aSlug}`);
-    render(<App households={householdsInMemory()} />);
+    render(<App households={householdsInMemory(aStockedHousehold)} />);
 
     await userEvent.click(
       await screen.findByRole("button", { name: /settings/i }),
@@ -97,21 +81,11 @@ describe("the app", () => {
   });
 
   it("shows what the settings changed on the way back to the Household", async () => {
-    answerInTurn(
-      { body: aStockedHousehold },
-      {
-        body: {
-          ...aStockedHousehold,
-          name: "The Khans",
-          cookingDays: ["friday"],
-        },
-      },
-    );
-
     visit(`/${aSlug}/settings`);
-    render(<App households={householdsInMemory()} />);
+    render(<App households={householdsInMemory(aStockedHousehold)} />);
 
     await userEvent.type(await screen.findByLabelText(/name/i), "The Khans");
+    await userEvent.click(screen.getByRole("checkbox", { name: "Sunday" }));
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
 
     expect(
@@ -123,8 +97,6 @@ describe("the app", () => {
   });
 
   it("opens the Household whose Slug was typed in, and remembers it", async () => {
-    answerWith(aStockedHousehold);
-
     visit("/");
     render(<App households={householdsInMemory(aStockedHousehold)} />);
 

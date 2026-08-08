@@ -23,7 +23,12 @@ export const App = ({ households }: AppProps) => {
   const route = routeFromPath(pathname);
 
   return route ? (
-    <HouseholdPage slug={route.slug} view={route.view} onGo={go} />
+    <HouseholdPage
+      slug={route.slug}
+      view={route.view}
+      onGo={go}
+      households={households}
+    />
   ) : (
     <LandingPage households={households} onGo={go} />
   );

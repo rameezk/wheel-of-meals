@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { failure, notFound } from "../shared/api";
 import { type Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
-import { fetchHousehold } from "./api";
 import { AppShell } from "./AppShell";
 import { FirstRun } from "./FirstRun";
 import { firstRunSkipped, skipFirstRun } from "./guiding";
+import type { Households } from "./households";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { mealsHeld } from "./meals";
@@ -26,9 +26,15 @@ type HouseholdPageProps = {
   slug: Slug;
   view: View;
   onGo: (path: string) => void;
+  households: Households;
 };
 
-export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
+export const HouseholdPage = ({
+  slug,
+  view,
+  onGo,
+  households,
+}: HouseholdPageProps) => {
   const [lookup, setLookup] = useState<Lookup>({ state: "looking" });
   const [guiding, setGuiding] = useState(false);
   const [spinOnArrival, setSpinOnArrival] = useState(false);
@@ -43,8 +49,11 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
   useEffect(() => {
     const controller = new AbortController();
 
-    fetchHousehold(slug, controller.signal)
+    households
+      .open(slug, controller.signal)
       .then((household) => {
+        if (controller.signal.aborted) return;
+
         if (!household) {
           setLookup({ state: "missing" });
           return;
@@ -60,7 +69,7 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
       });
 
     return () => controller.abort();
-  }, [slug]);
+  }, [slug, households]);
 
   const { state } = lookup;
   const name = lookup.state === "found" ? lookup.household.name : null;
@@ -112,12 +121,14 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
 
         {view === "settings" ? (
           <HouseholdSettings
+            households={households}
             household={household}
             onChange={show}
             onDone={() => onGo(`/${household.slug}`)}
           />
         ) : view === "meal-bank" ? (
           <MealBank
+            households={households}
             slug={household.slug}
             meals={household.mealBank}
             onChange={(mealBank) => show({ ...household, mealBank })}
@@ -125,6 +136,7 @@ export const HouseholdPage = ({ slug, view, onGo }: HouseholdPageProps) => {
           />
         ) : guiding ? (
           <FirstRun
+            households={households}
             slug={household.slug}
             meals={household.mealBank}
             onChange={(mealBank) => show({ ...household, mealBank })}

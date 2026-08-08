@@ -7,13 +7,9 @@ import {
 import type { Slug } from "../shared/slug";
 import { narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import {
-  addMeal,
-  deleteMeal,
-  editMeal,
-  messageFor,
-  type MealDraft,
-} from "./api";
+import { messageFor, type MealDraft } from "./api";
+import type { Households } from "./households";
+import { householdsOverHttp } from "./households-over-http";
 import {
   alertStyle,
   fieldStyle,
@@ -29,6 +25,7 @@ type MealBankProps = {
   meals: Meal[];
   onChange: (meals: Meal[]) => void;
   onBack: () => void;
+  households?: Households;
 };
 
 const byName = (one: Meal, other: Meal) =>
@@ -122,7 +119,13 @@ const MealForm = ({
   );
 };
 
-export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
+export const MealBank = ({
+  slug,
+  meals,
+  onChange,
+  onBack,
+  households = householdsOverHttp,
+}: MealBankProps) => {
   const [draft, setDraft] = useState<MealDraft>({ name: "", description: "" });
   const [filter, setFilter] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
@@ -161,7 +164,7 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
     if (!named(draft)) return;
 
     const outcome = await attempt(async () => {
-      const added = await addMeal(slug, draft);
+      const added = await households.addMeal(slug, draft);
       return { meals: [...meals, added], changed: added };
     });
 
@@ -174,7 +177,7 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
 
   const save = async (meal: Meal, draft: MealDraft) => {
     const outcome = await attempt(async () => {
-      const edited = await editMeal(slug, meal.id, draft);
+      const edited = await households.editMeal(slug, meal.id, draft);
       return {
         meals: meals.map((held) => (held.id === edited.id ? edited : held)),
         changed: edited,
@@ -187,7 +190,7 @@ export const MealBank = ({ slug, meals, onChange, onBack }: MealBankProps) => {
   const remove = async (meal: Meal) => {
     setConfirming(null);
     await attempt(async () => {
-      await deleteMeal(slug, meal.id);
+      await households.removeMeal(slug, meal.id);
       return {
         meals: meals.filter((held) => held.id !== meal.id),
         changed: meal,

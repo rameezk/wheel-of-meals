@@ -28,16 +28,6 @@ const sending = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export const fetchHousehold = async (
-  slug: Slug,
-  signal?: AbortSignal,
-): Promise<Household | null> => {
-  const response = await fetch(`/api/households/${slug}`, { signal });
-  if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Lookup failed with ${response.status}`);
-  return householdSchema.parse(await response.json());
-};
-
 export const updateHousehold = async (
   slug: Slug,
   changes: UpdateHousehold,
