@@ -3,11 +3,11 @@ import { failure, notFound } from "../shared/api";
 import type { Health } from "../shared/health";
 import { households } from "./households";
 import { meals } from "./meals";
-import { rateLimitWrites } from "./rate-limit";
+import { rateLimitRequests } from "./rate-limit";
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.use(rateLimitWrites);
+app.use(rateLimitRequests);
 
 app.get("/api/health", (c) => c.json<Health>({ status: "ok" }));
 

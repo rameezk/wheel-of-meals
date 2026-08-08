@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { failure, notFound } from "../shared/api";
+import { notFound } from "../shared/api";
 import { type Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { AppShell } from "./AppShell";
 import { FirstRun } from "./FirstRun";
 import { firstRunSkipped, skipFirstRun } from "./guiding";
-import type { Households } from "./households";
+import { messageFor, type Households } from "./households";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { mealsHeld } from "./meals";
@@ -20,7 +20,7 @@ type Lookup =
   | { state: "looking" }
   | { state: "found"; household: Household }
   | { state: "missing" }
-  | { state: "failed" };
+  | { state: "failed"; message: string };
 
 type HouseholdPageProps = {
   slug: Slug;
@@ -64,8 +64,9 @@ export const HouseholdPage = ({
           household.mealBank.length === 0 && !firstRunSkipped(household.slug),
         );
       })
-      .catch(() => {
-        if (!controller.signal.aborted) setLookup({ state: "failed" });
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted)
+          setLookup({ state: "failed", message: messageFor(error) });
       });
 
     return () => controller.abort();
@@ -91,7 +92,7 @@ export const HouseholdPage = ({
     return (
       <AppShell>
         <p role="alert" className="max-w-md text-center text-rose-300">
-          {lookup.state === "missing" ? notFound.message : failure.message}
+          {lookup.state === "missing" ? notFound.message : lookup.message}
         </p>
         <a href="/" className="text-stone-400 underline underline-offset-4">
           Back to the start

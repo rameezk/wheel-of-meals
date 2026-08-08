@@ -218,4 +218,16 @@ describe("typing a Slug in", () => {
       /something went wrong/i,
     );
   });
+
+  it("passes on why a rate-limited lookup was refused", async () => {
+    const households = householdsInMemory({ slug: aSlug });
+    households.refuseNextOpen(tooManyRequests);
+
+    render(<LandingPage households={households} onGo={() => {}} />);
+    await typeSlug(aSlug);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      tooManyRequests.message,
+    );
+  });
 });

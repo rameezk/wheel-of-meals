@@ -1,4 +1,4 @@
-# Writes are rate limited in the Worker
+# Requests are rate limited in the Worker
 
 Creating a [[Household]] is unauthenticated by design - ADR-0002 makes the
 [[Slug]] the only credential, and a Slug cannot be presented before the thing it
@@ -6,8 +6,16 @@ identifies exists. So `POST /api/households` is an open write endpoint on the
 public internet, and the caps that arrived with the [[Meal Bank]] work bound how
 big one Household gets, not how many of them a crawler can make.
 
-Every write is counted in the Worker, against the caller's IP, through
-Cloudflare's rate limiting bindings. The two limits are declared in
+Reads are open in the other direction. Because the Slug is the only credential,
+finding one is total access - read, write, delete, and no recovery for the family
+who lost it - and the whole defence is that an attacker must guess blind into a
+keyspace of 225,150,024 Slugs. An unmetered `GET /api/households/:slug` lets them
+guess as fast as the Worker will answer, for as long as they like. The prize is
+small, as ADR-0002 says, but "small prize" and "no ceiling" are different
+arguments and the second one was missing.
+
+Every request is counted in the Worker, against the caller's IP, through
+Cloudflare's rate limiting bindings. The three limits are declared in
 `wrangler.jsonc`:
 
 - **Household creation**, 20 per minute. A person creates one Household, ever,
@@ -15,9 +23,16 @@ Cloudflare's rate limiting bindings. The two limits are declared in
 - **Every other write** - naming a Household, changing its [[Cooking Days]],
   adding, editing and deleting [[Meal]]s - 120 per minute. Typing a Meal takes
   seconds, so a household at full tilt is nowhere near two writes per second.
+- **Every read**, 300 per minute. Opening the app costs exactly one read of the
+  Household, and moving between the week, the Meal Bank and settings costs none,
+  so a family refreshing all evening spends a handful. This is the endpoint every
+  real user meets first, so it is the most generous of the three: a false refusal
+  here would be somebody's first impression of the app.
 
-Both sit far above anyone cooking and far below the thousands per minute that
-would make a crawler's effort worthwhile.
+All three sit far above anyone cooking and far below the thousands per minute
+that would make a crawler's effort worthwhile. At 300 reads a minute, sweeping
+the whole Slug keyspace from one location takes over a year, against no bound at
+all before.
 
 The headroom above one person's use is deliberate, because the key is an IP and
 an IP is not a person. Behind carrier-grade NAT or an office router, thousands of
@@ -36,11 +51,12 @@ cannot drift from the ones in git without someone editing git. There is no
 Terraform, no API script, and no runbook to follow, because there is no second
 place holding the truth.
 
-It also buys the response. A refused write returns `429` with the same
+It also buys the response. A refused request returns `429` with the same
 `{ error, message }` body every other refusal in this app uses, so the client's
 existing `Refusal` path renders it and the user reads a sentence rather than
 meeting a block page. `createHousehold` had been the one call that discarded the
-server's message; it no longer is.
+server's message, and `fetchHousehold` the other; neither is now, so a refused
+page load says what happened instead of claiming something went wrong.
 
 ## A request with no `cf-connecting-ip` is not counted
 
@@ -61,6 +77,11 @@ A minute is the longest window the binding offers, so these limits bound a burst
 and not a patient crawler. Twenty creations a minute, sustained all day from one
 address and never once tripping the limit, is tens of thousands of [[Household]]s
 - and the per-location counters below multiply it again for anything distributed.
+
+Enumeration has the same shape: 300 guesses a minute, sustained from one address
+and never tripping the limit, is 432,000 a day, so the keyspace takes about 521
+days to sweep - and a caller spread over many locations divides that. The point
+is that a number exists at all.
 
 That residual is accepted rather than overlooked. Stopping it needs state this
 app does not keep: a daily counter per address, which is a Durable Object, a
@@ -88,7 +109,14 @@ has not happened. Revive when it has.
 **Keying by [[Slug]] instead of IP.** Would protect one Household from a
 runaway client but not the account from a crawler creating Households, which is
 the failure being guarded. It also cannot key Household creation at all, since
-no Slug exists yet.
+no Slug exists yet. For reads it is worse than useless: an enumerator asks about
+a different Slug every time, so a per-Slug counter would count one guess each and
+limit nothing.
+
+**Making `foodWords` secret.** The wordlist is worker-only and tree-shakes out of
+the client bundle, but the repository is public deliberately (ADR-0013), so
+anyone who wants the 124 words has them. Hiding the list would be obscurity
+standing in for a control. The ceiling is the control.
 
 ## Consequences
 
@@ -97,13 +125,17 @@ caller spread across enough locations gets a multiple of the stated limit. The
 limits are set for the order of magnitude, not the exact number, so this changes
 nothing about what they stop.
 
-Adding a write endpoint gets rate limiting without anyone remembering to ask for
-it: the middleware counts by HTTP method, so any new write is limited the moment
-it is routed - and a write to a path that routes nowhere is counted too, so
-probing for an unmetered endpoint costs the prober the same quota as using one.
-An endpoint that should be metered *separately* - not merely limited - is the
-only case that needs a change here.
+Adding an endpoint of either kind gets rate limiting without anyone remembering
+to ask for it: the middleware counts every request, choosing the limiter by HTTP
+method, so a new endpoint is limited the moment it is routed - and a request to a
+path that routes nowhere is counted too, so probing for an unmetered endpoint
+costs the prober the same quota as using one. An endpoint that should be metered
+*separately* - not merely limited - is the only case that needs a change here.
 
-The two namespace ids in `wrangler.jsonc` are account-wide. Another Worker on
-this account reusing `1001` or `1002` would share these counters, which is the
-binding's documented behaviour and worth knowing before a second Worker appears.
+`GET /api/health` is counted against the read limit, which is the same 300 per
+minute an uptime check will never approach.
+
+The three namespace ids in `wrangler.jsonc` are account-wide. Another Worker on
+this account reusing `1001`, `1002` or `1003` would share these counters, which
+is the binding's documented behaviour and worth knowing before a second Worker
+appears.

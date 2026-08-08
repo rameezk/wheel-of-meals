@@ -1,52 +1,15 @@
-import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 import { tooManyRequests } from "../shared/api";
-
-const origin = "https://example.com";
-
-const from = (ip: string) => ({ "cf-connecting-ip": ip });
-
-const create = (ip: string) =>
-  SELF.fetch(`${origin}/api/households`, {
-    method: "POST",
-    headers: from(ip),
-  });
-
-const createdSlug = async (ip: string) => {
-  const body = await (await create(ip)).json<{ slug: string }>();
-  return body.slug;
-};
-
-const addMeal = (ip: string, slug: string, name: string) =>
-  SELF.fetch(`${origin}/api/households/${slug}/meals`, {
-    method: "POST",
-    headers: { "content-type": "application/json", ...from(ip) },
-    body: JSON.stringify({ name }),
-  });
-
-const times = (count: number, attempt: (n: number) => Promise<Response>) =>
-  Promise.all(Array.from({ length: count }, (_, n) => attempt(n)));
-
-const refused = (responses: Response[]) =>
-  responses.filter((response) => response.status === 429);
-
-const rateLimitPeriod = 60_000;
-
-const currentWindow = () => Math.floor(Date.now() / rateLimitPeriod);
-
-const withinOneWindow = async (
-  burst: (attempt: number) => Promise<Response[]>,
-) => {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const opened = currentWindow();
-    const responses = await burst(attempt);
-    if (currentWindow() === opened) return responses;
-  }
-
-  throw new Error(
-    "The rate limit window turned during all three bursts, so none of them was counted as one",
-  );
-};
+import {
+  addMeal,
+  create,
+  createdSlug,
+  read,
+  refused,
+  request,
+  times,
+  withinOneWindow,
+} from "./test-callers";
 
 describe("rate limiting Household creation", () => {
   it("refuses a burst with a comprehensible 429", async () => {
@@ -106,12 +69,7 @@ describe("rate limiting Meal Bank writes", () => {
 describe("a write to a path that routes nowhere", () => {
   it("is still counted, so a crawler cannot probe for free", async () => {
     const responses = await withinOneWindow(() =>
-      times(150, (n) =>
-        SELF.fetch(`${origin}/api/nothing/${n}`, {
-          method: "POST",
-          headers: from("203.0.113.9"),
-        }),
-      ),
+      times(150, (n) => request(`/api/nothing/${n}`, "POST", "203.0.113.9")),
     );
 
     expect(refused(responses).length).toBeGreaterThan(0);
@@ -120,25 +78,17 @@ describe("a write to a path that routes nowhere", () => {
 
 describe("a request that did not arrive through Cloudflare", () => {
   it("is left alone, having no caller to count against", async () => {
-    const responses = await times(30, () =>
-      SELF.fetch(`${origin}/api/households`, { method: "POST" }),
-    );
+    const responses = await times(30, () => request("/api/households", "POST"));
 
     expect(refused(responses)).toHaveLength(0);
   });
 });
 
-describe("rate limiting reads", () => {
-  it("leaves them alone", async () => {
+describe("a caller who has used up their writes", () => {
+  it("can still read the Household they were working on", async () => {
     const slug = await createdSlug("203.0.113.7");
     await times(30, () => create("203.0.113.7"));
 
-    const responses = await times(50, () =>
-      SELF.fetch(`${origin}/api/households/${slug}`, {
-        headers: from("203.0.113.7"),
-      }),
-    );
-
-    expect(responses.every((response) => response.ok)).toBe(true);
+    expect((await read("203.0.113.7", slug)).status).toBe(200);
   }, 30_000);
 });

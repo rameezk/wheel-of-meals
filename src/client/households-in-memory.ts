@@ -9,9 +9,12 @@ type NamedRefusal = { error: string; message: string };
 
 type Trouble = NamedRefusal | "failure";
 
+type Waiting = { trouble: Trouble | null };
+
 export type HouseholdsInMemory = Households & {
   refuseNextChange: (refusal: NamedRefusal) => void;
   failNextChange: () => void;
+  refuseNextOpen: (refusal: NamedRefusal) => void;
   failNextOpen: () => void;
 };
 
@@ -47,8 +50,8 @@ export const householdsInMemory = (
     held.set(household.slug, household);
   }
 
-  let trouble: Trouble | null = null;
-  let openFailing = false;
+  const changing: Waiting = { trouble: null };
+  const opening: Waiting = { trouble: null };
   let created = 0;
 
   const freshId = (): string => {
@@ -59,14 +62,17 @@ export const householdsInMemory = (
     return taken ? freshId() : id;
   };
 
-  const change = <Made>(make: () => Made): Promise<Made> =>
+  const attempt = <Made>(waiting: Waiting, make: () => Made): Promise<Made> =>
     new Promise((resolve) => {
-      const pending = trouble;
-      trouble = null;
-      if (pending === "failure") throw new Error("The Worker is unreachable");
-      if (pending) throw new Refusal(pending.message);
+      const { trouble } = waiting;
+      waiting.trouble = null;
+      if (trouble === "failure") throw new Error("The Worker is unreachable");
+      if (trouble) throw new Refusal(trouble.message);
       resolve(make());
     });
+
+  const change = <Made>(make: () => Made): Promise<Made> =>
+    attempt(changing, make);
 
   const householdAt = (slug: string): Household => {
     const household = held.get(slug);
@@ -94,13 +100,7 @@ export const householdsInMemory = (
         return household;
       }),
 
-    open: (slug) => {
-      const failing = openFailing;
-      openFailing = false;
-      return failing
-        ? Promise.reject(new Error("The Worker is unreachable"))
-        : Promise.resolve(held.get(slug) ?? null);
-    },
+    open: (slug) => attempt(opening, () => held.get(slug) ?? null),
 
     update: (slug, changes) =>
       change(() => {
@@ -153,15 +153,19 @@ export const householdsInMemory = (
       }),
 
     refuseNextChange: (refusal) => {
-      trouble = refusal;
+      changing.trouble = refusal;
     },
 
     failNextChange: () => {
-      trouble = "failure";
+      changing.trouble = "failure";
+    },
+
+    refuseNextOpen: (refusal) => {
+      opening.trouble = refusal;
     },
 
     failNextOpen: () => {
-      openFailing = true;
+      opening.trouble = "failure";
     },
   };
 };
