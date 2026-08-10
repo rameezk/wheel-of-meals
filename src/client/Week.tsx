@@ -9,8 +9,12 @@ import { weekAsText } from "./sharing";
 import { loudButtonStyle } from "./styles";
 import { TheWheel } from "./Wheel";
 
+const nameStyle = "min-w-0 text-right break-words text-stone-100";
+
+const descriptionButtonStyle = `${nameStyle} cursor-pointer underline decoration-stone-600 decoration-dotted underline-offset-4 transition hover:decoration-stone-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400`;
+
 const respinButtonStyle =
-  "-my-2 flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full border border-stone-800 text-lg text-stone-400 transition hover:border-stone-600 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:border-stone-800/60 disabled:text-stone-600 disabled:hover:border-stone-800/60 disabled:hover:text-stone-600";
+  "-my-1.5 flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full border border-stone-800 text-lg text-stone-400 transition hover:border-stone-600 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:border-stone-800/60 disabled:text-stone-600 disabled:hover:border-stone-800/60 disabled:hover:text-stone-600";
 
 type TheWeekProps = {
   cookingDays: CookingDay[];
@@ -27,6 +31,32 @@ const readOutDay = ({ day, meal }: Week[number]) =>
   `${dayLabels[day]}: ${meal?.name ?? "no Meal"}`;
 
 const readOut = (week: Week) => week.map(readOutDay).join(", ");
+
+const DrawnMeal = ({ meal }: { meal: Meal }) => {
+  const [open, setOpen] = useState(false);
+
+  if (!meal.description) return <span className={nameStyle}>{meal.name}</span>;
+
+  return (
+    <span className="flex min-w-0 flex-col items-end gap-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((shown) => !shown)}
+        className={descriptionButtonStyle}
+      >
+        {meal.name}
+        <span className="sr-only">, description</span>
+      </button>
+
+      {open && (
+        <span className="text-right text-sm break-words text-stone-400">
+          {meal.description}
+        </span>
+      )}
+    </span>
+  );
+};
 
 export const TheWeek = ({
   cookingDays,
@@ -122,16 +152,18 @@ export const TheWeek = ({
 
                 {cooking && (
                   <span className="flex min-w-0 items-baseline justify-end gap-3">
-                    <span className="min-w-0 text-right break-words text-stone-100">
-                      {meal
-                        ? meal.name
-                        : week && (
-                            <span className="text-stone-600">
-                              <span aria-hidden>-</span>
-                              <span className="sr-only">No Meal</span>
-                            </span>
-                          )}
-                    </span>
+                    {meal ? (
+                      <DrawnMeal meal={meal} />
+                    ) : (
+                      <span className={nameStyle}>
+                        {week && (
+                          <span className="text-stone-600">
+                            <span aria-hidden>-</span>
+                            <span className="sr-only">No Meal</span>
+                          </span>
+                        )}
+                      </span>
+                    )}
 
                     {week && (
                       <button
