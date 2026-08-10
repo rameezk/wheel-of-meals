@@ -1,5 +1,6 @@
 import { SELF } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
+import type { Recipe } from "../shared/recipe";
 
 const origin = "https://example.com";
 
@@ -216,6 +217,13 @@ describe("editing a Meal", () => {
   });
 });
 
+const aRecipe = (parts: Partial<Recipe>): Recipe => ({
+  source: null,
+  ingredients: null,
+  method: null,
+  ...parts,
+});
+
 describe("setting a Meal's Recipe", () => {
   const aRecipeFor = async (source: string) => {
     const slug = await aHousehold();
@@ -236,7 +244,7 @@ describe("setting a Meal's Recipe", () => {
     const { slug, response, body } = await aRecipeFor(source);
 
     expect(response.status).toBe(200);
-    expect(body.recipe).toEqual({ source });
+    expect(body.recipe).toEqual(aRecipe({ source }));
     await expect(mealBank(slug)).resolves.toEqual([body]);
   });
 
@@ -250,9 +258,9 @@ describe("setting a Meal's Recipe", () => {
   it("takes a bare host and prefixes it with https", async () => {
     const { body } = await aRecipeFor("recipes.example.com/butter-chicken");
 
-    expect(body.recipe).toEqual({
-      source: "https://recipes.example.com/butter-chicken",
-    });
+    expect(body.recipe).toEqual(
+      aRecipe({ source: "https://recipes.example.com/butter-chicken" }),
+    );
   });
 
   it("rewrites nothing else about a link that needed its query string", async () => {
@@ -261,7 +269,7 @@ describe("setting a Meal's Recipe", () => {
 
     const { body } = await aRecipeFor(source);
 
-    expect(body.recipe).toEqual({ source });
+    expect(body.recipe).toEqual(aRecipe({ source }));
   });
 
   it("refuses a link that is not http or https", async () => {
@@ -297,7 +305,9 @@ describe("setting a Meal's Recipe", () => {
     const atTheCap = await aRecipeFor(bareHost);
     const overIt = await aRecipeFor(bareHost + "b");
 
-    expect(atTheCap.body.recipe).toEqual({ source: `https://${bareHost}` });
+    expect(atTheCap.body.recipe).toEqual(
+      aRecipe({ source: `https://${bareHost}` }),
+    );
     expect(overIt.response.status).toBe(400);
     expect(String(overIt.body.message)).toMatch(/1000 characters/);
   });
@@ -305,9 +315,9 @@ describe("setting a Meal's Recipe", () => {
   it("takes a bare host that names a port", async () => {
     const { body } = await aRecipeFor("recipes.example.com:8080/tacos");
 
-    expect(body.recipe).toEqual({
-      source: "https://recipes.example.com:8080/tacos",
-    });
+    expect(body.recipe).toEqual(
+      aRecipe({ source: "https://recipes.example.com:8080/tacos" }),
+    );
   });
 
   it("refuses a scheme with nothing after it", async () => {
@@ -333,7 +343,7 @@ describe("setting a Meal's Recipe", () => {
 
     const { body } = await setRecipe(slug, id, { source });
 
-    expect(body.recipe).toEqual({ source });
+    expect(body.recipe).toEqual(aRecipe({ source }));
     await expect(mealBank(slug)).resolves.toEqual([body]);
   });
 
@@ -343,7 +353,10 @@ describe("setting a Meal's Recipe", () => {
 
     const { body } = await editMeal(slug, id, { name: "Butter Chicken" });
 
-    expect(body).toMatchObject({ name: "Butter Chicken", recipe: { source } });
+    expect(body).toMatchObject({
+      name: "Butter Chicken",
+      recipe: aRecipe({ source }),
+    });
   });
 
   it("takes the Recipe with the Meal when the Meal is deleted", async () => {
@@ -376,6 +389,120 @@ describe("setting a Meal's Recipe", () => {
 
     expect(response.status).toBe(404);
     expect(body.error).toBe("not_found");
+  });
+});
+
+describe("a Recipe's Ingredients and Method", () => {
+  const written = async (recipe: unknown) => {
+    const slug = await aHousehold();
+    const { body: meal } = await addMeal(slug, { name: "Butter chicken" });
+    return {
+      slug,
+      id: String(meal.id),
+      ...(await setRecipe(slug, String(meal.id), recipe)),
+    };
+  };
+
+  const ingredients = "1 onion, chopped\n2 tbsp butter\n400g tomatoes";
+
+  const method = "Fry the paste for two minutes.\n\nSimmer for an hour.";
+
+  it("keeps Ingredients on their own as a whole Recipe", async () => {
+    const { slug, response, body } = await written({ ingredients });
+
+    expect(response.status).toBe(200);
+    expect(body.recipe).toEqual(aRecipe({ ingredients }));
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("keeps a Method on its own as a whole Recipe", async () => {
+    const { slug, response, body } = await written({ method });
+
+    expect(response.status).toBe(200);
+    expect(body.recipe).toEqual(aRecipe({ method }));
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("keeps all three parts together and reads them all back", async () => {
+    const source = "https://recipes.example.com/butter-chicken";
+
+    const { slug, body } = await written({ source, ingredients, method });
+
+    expect(body.recipe).toEqual({ source, ingredients, method });
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("gives back the lines and the blank lines exactly as they were typed", async () => {
+    const { slug, body } = await written({ ingredients, method });
+
+    expect(body.recipe).toEqual(aRecipe({ ingredients, method }));
+    await expect(mealBank(slug)).resolves.toEqual([
+      { ...body, recipe: aRecipe({ ingredients, method }) },
+    ]);
+  });
+
+  it("trims the ends and drops a part that trims to nothing", async () => {
+    const { body } = await written({
+      ingredients: "\n  1 onion  \n",
+      method: "   \n  ",
+    });
+
+    expect(body.recipe).toEqual(aRecipe({ ingredients: "1 onion" }));
+  });
+
+  it("removes the Recipe when all three parts are emptied", async () => {
+    const { slug, id } = await written({ ingredients, method });
+
+    const { response, body } = await setRecipe(slug, id, {
+      source: "",
+      ingredients: "",
+      method: "  \n ",
+    });
+
+    expect(response.status).toBe(200);
+    expect(body.recipe).toBeNull();
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("takes Ingredients of exactly 1000 characters and refuses 1001", async () => {
+    const atTheCap = await written({ ingredients: "a".repeat(1000) });
+    const overIt = await written({ ingredients: "a".repeat(1001) });
+
+    expect(atTheCap.response.status).toBe(200);
+    expect(overIt.response.status).toBe(400);
+    expect(overIt.body.error).toBe("invalid_recipe");
+    expect(String(overIt.body.message)).toMatch(/1000 characters/);
+  });
+
+  it("takes a Method of exactly 2000 characters and refuses 2001", async () => {
+    const atTheCap = await written({ method: "a".repeat(2000) });
+    const overIt = await written({ method: "a".repeat(2001) });
+
+    expect(atTheCap.response.status).toBe(200);
+    expect(overIt.response.status).toBe(400);
+    expect(overIt.body.error).toBe("invalid_recipe");
+    expect(String(overIt.body.message)).toMatch(/2000 characters/);
+  });
+
+  it("writes neither the Meal's name nor its description", async () => {
+    const slug = await aHousehold();
+    const { body: meal } = await addMeal(slug, {
+      name: "Butter chicken",
+      description: "The one with the coconut milk",
+    });
+
+    const { body } = await setRecipe(slug, String(meal.id), { method });
+
+    expect(body.name).toBe("Butter chicken");
+    expect(body.description).toBe("The one with the coconut milk");
+  });
+
+  it("keeps the parts when the Meal is renamed", async () => {
+    const { slug, id } = await written({ ingredients, method });
+
+    const { body } = await editMeal(slug, id, { name: "Butter Chicken" });
+
+    expect(body.recipe).toEqual(aRecipe({ ingredients, method }));
   });
 });
 

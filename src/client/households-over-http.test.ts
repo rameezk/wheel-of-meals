@@ -26,6 +26,12 @@ const sent = () => {
 
 const aDraft = { name: "Butter chicken", description: "With coconut milk" };
 
+const aRecipeDraft = {
+  source: aSource,
+  ingredients: "1 onion\n2 tbsp butter",
+  method: "Fry the paste.\n\nSimmer it.",
+};
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -100,9 +106,7 @@ describe("Households over HTTP", () => {
     answerWith(aMealWithARecipe);
 
     await expect(
-      householdsOverHttp.setRecipe(aSlug, aMealWithARecipe.id, {
-        source: aSource,
-      }),
+      householdsOverHttp.setRecipe(aSlug, aMealWithARecipe.id, aRecipeDraft),
     ).resolves.toEqual(aMealWithARecipe);
     expect(sent().url).toBe(
       `/api/households/${aSlug}/meals/${aMealWithARecipe.id}/recipe`,
@@ -113,11 +117,13 @@ describe("Households over HTTP", () => {
   it("sends nothing but the Recipe, so a save cannot rename the Meal", async () => {
     answerWith(aMealWithARecipe);
 
-    await householdsOverHttp.setRecipe(aSlug, aMealWithARecipe.id, {
-      source: aSource,
-    });
+    await householdsOverHttp.setRecipe(
+      aSlug,
+      aMealWithARecipe.id,
+      aRecipeDraft,
+    );
 
-    expect(sent().body).toEqual({ source: aSource });
+    expect(sent().body).toEqual(aRecipeDraft);
   });
 
   it("removes a Meal from the Meal Bank", async () => {

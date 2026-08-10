@@ -1,7 +1,7 @@
 import { notFound } from "../shared/api";
 import { defaultCookingDays, type Household } from "../shared/household";
 import type { Meal } from "../shared/meal";
-import { readSource, recipeOf } from "../shared/recipe";
+import { readRecipe } from "../shared/recipe";
 import { generateSlug } from "../shared/slug";
 import { collapseWhitespace } from "../shared/text";
 import { Refusal, type Households, type MealDraft } from "./households";
@@ -147,12 +147,12 @@ export const householdsInMemory = (
     setRecipe: (slug, id, draft) =>
       change(() => {
         const household = householdAt(slug);
-        const read = readSource(draft.source);
+        const read = readRecipe(draft);
         if ("refusal" in read) throw new Refusal(read.refusal);
 
         const written: Meal = {
           ...mealOf(household, id),
-          recipe: recipeOf(read.source),
+          recipe: read.recipe,
         };
         restock(
           household,

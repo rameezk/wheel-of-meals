@@ -7,11 +7,14 @@ import { HouseholdPage } from "./HouseholdPage";
 import { householdsInMemory } from "./households-in-memory";
 import { landedHighlightMillis } from "./motion";
 import { hasARecipe } from "./MealRow";
+import { methodTooLong } from "../shared/recipe";
+import { removesTheRecipe } from "./Recipe";
 import { landedRowStyle } from "./styles";
 import {
   aHousehold,
   aMeal,
   aMealWithARecipe,
+  aRecipe,
   aSlug,
   aSource,
 } from "./test-fixtures";
@@ -66,6 +69,12 @@ const rowFor = (meal: Meal) => screen.getByText(meal.name).closest("button");
 const openRecipe = (meal: Meal) => userEvent.click(screen.getByText(meal.name));
 
 const sourceField = () => screen.getByLabelText(/source/i);
+
+const ingredientsField = () => screen.getByLabelText(/ingredients/i);
+
+const methodField = () => screen.getByLabelText(/method/i);
+
+const nothingTyped = { source: "", ingredients: "", method: "" };
 
 const theSheet = (meal: Meal) =>
   screen.queryByRole("dialog", {
@@ -529,7 +538,24 @@ describe("a Meal's Recipe", () => {
 
     expect(theSheet(aMeal)).toBeInTheDocument();
     expect(sourceField()).toHaveValue("");
+    expect(ingredientsField()).toHaveValue("");
+    expect(methodField()).toHaveValue("");
     expect(screen.getByLabelText("Filter")).toBeInTheDocument();
+  });
+
+  it("labels its three parts in the order they are read", async () => {
+    await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+
+    const labels = screen
+      .getAllByText(/^(Source|Ingredients|Method) \(optional\)$/)
+      .map((label) => label.textContent);
+    expect(labels).toEqual([
+      "Source (optional)",
+      "Ingredients (optional)",
+      "Method (optional)",
+    ]);
   });
 
   it("keeps a Source and marks the row it came from", async () => {
@@ -540,7 +566,10 @@ describe("a Meal's Recipe", () => {
     await userEvent.type(sourceField(), aSource);
     await press("Save");
 
-    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, { source: aSource });
+    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, {
+      ...nothingTyped,
+      source: aSource,
+    });
     await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
     expect(rows()[0]).toHaveTextContent(hasARecipe);
   });
@@ -569,17 +598,117 @@ describe("a Meal's Recipe", () => {
     expect(rows()[0]).toHaveTextContent(hasARecipe);
   });
 
-  it("takes the Recipe and its marker away when the Source is cleared", async () => {
+  it("takes the Recipe and its marker away once the emptying is confirmed", async () => {
     await showBank([aMealWithARecipe]);
 
     await openRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
     await press("Save");
 
+    expect(await screen.findByText(removesTheRecipe)).toBeInTheDocument();
+    await press(`Yes, remove the Recipe for ${aMealWithARecipe.name}`);
+
     await vi.waitFor(() =>
       expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument(),
     );
     expect(rows()[0]).not.toHaveTextContent(hasARecipe);
+  });
+
+  it("keeps the Recipe and what was typed when the emptying is declined", async () => {
+    const households = await showBank([aMealWithARecipe]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(aMealWithARecipe);
+    await userEvent.clear(sourceField());
+    await userEvent.type(methodField(), "   ");
+    await press("Save");
+    await press(`Keep the Recipe for ${aMealWithARecipe.name}`);
+
+    expect(setting).not.toHaveBeenCalled();
+    expect(theSheet(aMealWithARecipe)).toBeInTheDocument();
+    expect(sourceField()).toHaveValue("");
+    expect(methodField()).toHaveValue("   ");
+    expect(rows()[0]).toHaveTextContent(hasARecipe);
+  });
+
+  it("saves an already-empty Recipe without asking, as there is nothing to lose", async () => {
+    const households = await showBank([aMeal]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(aMeal);
+    await press("Save");
+
+    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, nothingTyped);
+    await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
+  });
+
+  it("keeps Ingredients and a Method on their own, line for line", async () => {
+    const households = await showBank([aMeal]);
+    const setting = vi.spyOn(households, "setRecipe");
+    const ingredients = "1 onion, chopped\n2 tbsp butter";
+    const method = "Fry the paste.\n\nSimmer for an hour.";
+
+    await openRecipe(aMeal);
+    await userEvent.type(ingredientsField(), ingredients);
+    await userEvent.type(methodField(), method);
+    await press("Save");
+
+    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, {
+      source: "",
+      ingredients,
+      method,
+    });
+    await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
+    expect(rows()[0]).toHaveTextContent(hasARecipe);
+    expect(rows()[0]).not.toHaveTextContent("↗");
+  });
+
+  it("holds the question open when Enter is pressed instead of the answer", async () => {
+    const households = await showBank([aMealWithARecipe]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(aMealWithARecipe);
+    await userEvent.clear(sourceField());
+    await userEvent.type(sourceField(), "{Enter}{Enter}");
+
+    expect(screen.getByText(removesTheRecipe)).toBeInTheDocument();
+    expect(setting).not.toHaveBeenCalled();
+    expect(rows()[0]).toHaveTextContent(hasARecipe);
+  });
+
+  it("shows a kept Recipe's parts as they were typed when it is opened again", async () => {
+    const written = {
+      ...aMeal,
+      recipe: aRecipe({
+        ingredients: "1 onion, chopped\n2 tbsp butter",
+        method: "Fry the paste.\n\nSimmer for an hour.",
+      }),
+    };
+    await showBank([written]);
+
+    await openRecipe(written);
+
+    expect(sourceField()).toHaveValue("");
+    expect(ingredientsField()).toHaveValue("1 onion, chopped\n2 tbsp butter");
+    expect(methodField()).toHaveValue("Fry the paste.\n\nSimmer for an hour.");
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("refuses a Method past its cap and says how long it may be", async () => {
+    const households = await showBank([aMeal]);
+    households.refuseNextChange({
+      error: "invalid_recipe",
+      message: methodTooLong,
+    });
+
+    await openRecipe(aMeal);
+    await userEvent.type(methodField(), "Fry the paste.");
+    await press("Save");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /2000 characters/,
+    );
+    expect(theSheet(aMeal)).toBeInTheDocument();
   });
 
   it("refuses a Source that is not a link and says why", async () => {
@@ -618,6 +747,19 @@ describe("a Meal's Recipe", () => {
     await press("Cancel");
 
     expect(row).toHaveFocus();
+  });
+
+  it("walks the three parts in order with the keyboard alone", async () => {
+    await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+    expect(sourceField()).toHaveFocus();
+
+    await userEvent.tab();
+    expect(ingredientsField()).toHaveFocus();
+
+    await userEvent.tab();
+    expect(methodField()).toHaveFocus();
   });
 
   it("closes on Escape without writing anything", async () => {
