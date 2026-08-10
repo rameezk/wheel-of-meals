@@ -7,12 +7,12 @@ import { firstRunSkipped, skipFirstRun } from "./guiding";
 import type { Households } from "./households";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
-import { mealsHeld } from "./meals";
+import { whatTheBankHolds } from "./meals";
 import { useOpenHousehold } from "./open-household";
 import type { View } from "./route";
 import { ShareButton } from "./Share";
 import { householdLink } from "./sharing";
-import { quietButtonStyle } from "./styles";
+import { quietButtonStyle, rowStyle, settledRowStyle } from "./styles";
 import { TheWeek } from "./Week";
 
 type HouseholdPageProps = {
@@ -122,34 +122,42 @@ export const HouseholdPage = ({
               spinOnArrival={spinOnArrival}
             />
 
-            <div className="flex flex-wrap items-start justify-center gap-2">
-              <ShareButton
-                label="Share the Household"
-                shareable={{
-                  title: household.name ?? household.slug,
-                  url: householdLink(household.slug),
-                }}
-              />
-
+            <div className="flex w-full flex-col gap-3 border-t border-stone-900 pt-6">
               <button
                 type="button"
                 onClick={() => onGo(`/${household.slug}/meal-bank`)}
-                aria-label={`Meal Bank, ${mealsHeld(household.mealBank.length)}`}
-                className={`${quietButtonStyle} gap-2`}
+                className={`${rowStyle} ${settledRowStyle} flex w-full items-center justify-between gap-3 text-left hover:border-stone-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400`}
               >
-                Meal Bank
-                <span className="rounded-full bg-stone-800 px-2 py-0.5 text-xs text-stone-300">
-                  {household.mealBank.length}
+                <span className="flex min-w-0 flex-col gap-1">
+                  <span className="font-medium break-words text-stone-100">
+                    Open the Meal Bank
+                  </span>
+                  <span className="text-sm break-words text-stone-400">
+                    {whatTheBankHolds(household.mealBank.length)}
+                  </span>
+                </span>
+                <span aria-hidden className="shrink-0 text-stone-500">
+                  ›
                 </span>
               </button>
 
-              <button
-                type="button"
-                onClick={() => onGo(`/${household.slug}/settings`)}
-                className={quietButtonStyle}
-              >
-                Settings
-              </button>
+              <div className="flex items-start justify-center gap-2">
+                <ShareButton
+                  label="Share the Household"
+                  shareable={{
+                    title: household.name ?? household.slug,
+                    url: householdLink(household.slug),
+                  }}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => onGo(`/${household.slug}/settings`)}
+                  className={quietButtonStyle}
+                >
+                  Settings
+                </button>
+              </div>
             </div>
           </>
         )}

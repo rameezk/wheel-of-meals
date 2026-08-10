@@ -113,12 +113,40 @@ describe("a Household page", () => {
     expect(screen.queryByLabelText(/^meal$/i)).not.toBeInTheDocument();
   });
 
-  it("carries the count of Meals on the Meal Bank button", async () => {
+  it("invites an empty Bank to be filled rather than counting nothing", async () => {
+    skipFirstRun(aSlug);
+
+    render(thePage(householdsInMemory(aHousehold)));
+
+    const wayIn = await screen.findByRole("button", {
+      name: /open the meal bank/i,
+    });
+
+    expect(wayIn).toHaveAccessibleName(/no meals yet - add the ones you cook/i);
+    expect(wayIn).not.toHaveAccessibleName(/0 meals/i);
+  });
+
+  it("offers to open the Meal Bank and says what it holds", async () => {
+    render(
+      thePage(
+        householdsInMemory({
+          ...aHousehold,
+          mealBank: [aMeal, { ...aMeal, id: "meal-2", name: "Bobotie" }],
+        }),
+      ),
+    );
+
+    expect(
+      await screen.findByRole("button", { name: /open the meal bank/i }),
+    ).toHaveAccessibleName(/2 meals to draw from/i);
+  });
+
+  it("counts a Bank of one Meal in the singular", async () => {
     render(thePage(householdsInMemory(aStockedHousehold)));
 
     expect(
-      await screen.findByRole("button", { name: /meal bank, 1 meal/i }),
-    ).toBeInTheDocument();
+      await screen.findByRole("button", { name: /open the meal bank/i }),
+    ).toHaveAccessibleName(/1 meal to draw from/i);
   });
 
   it("opens the Meal Bank at its own path", async () => {
@@ -131,7 +159,7 @@ describe("a Household page", () => {
     );
 
     await userEvent.click(
-      await screen.findByRole("button", { name: /meal bank/i }),
+      await screen.findByRole("button", { name: /open the meal bank/i }),
     );
 
     expect(go).toHaveBeenCalledWith(`/${aSlug}/meal-bank`);
