@@ -1,19 +1,16 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
-import {
-  mealDescriptionMaxLength,
-  mealNameMaxLength,
-  type Meal,
-} from "../shared/meal";
-import { narrowedTo, shownBy } from "./meals";
+import type { Meal } from "../shared/meal";
+import { named, narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
 import type { MealDraft } from "./households";
 import type { OpenHousehold } from "./open-household";
+import { MealFields } from "./MealFields";
+import { MealRow, type RowOpenTo } from "./MealRow";
 import {
   alertStyle,
   fieldStyle,
   landedRowStyle,
   loudButtonStyle,
-  quietButtonStyle,
   rowStyle,
   settledRowStyle,
 } from "./styles";
@@ -23,104 +20,20 @@ type MealBankProps = {
   onBack: () => void;
 };
 
+type Opened = { id: string; to: RowOpenTo };
+
 const byName = (one: Meal, other: Meal) =>
   one.name.localeCompare(other.name, undefined, { sensitivity: "base" });
 
 const backButtonStyle =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-700 text-lg text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
 
-const MealFields = ({
-  nameLabel,
-  descriptionLabel,
-  draft,
-  onChange,
-  focusName = false,
-}: {
-  nameLabel: string;
-  descriptionLabel: string;
-  draft: MealDraft;
-  onChange: (draft: MealDraft) => void;
-  focusName?: boolean;
-}) => (
-  <>
-    <label className="flex flex-col gap-1.5 text-sm text-stone-400">
-      {nameLabel}
-      <input
-        value={draft.name}
-        onChange={(event) => onChange({ ...draft, name: event.target.value })}
-        placeholder="Butter chicken"
-        maxLength={mealNameMaxLength}
-        autoFocus={focusName}
-        className={fieldStyle}
-      />
-    </label>
-    <label className="flex flex-col gap-1.5 text-sm text-stone-400">
-      {descriptionLabel}
-      <input
-        value={draft.description}
-        onChange={(event) =>
-          onChange({ ...draft, description: event.target.value })
-        }
-        placeholder="The one with the coconut milk"
-        maxLength={mealDescriptionMaxLength}
-        className={fieldStyle}
-      />
-    </label>
-  </>
-);
-
-const named = (draft: MealDraft) => draft.name.trim().length > 0;
-
-const MealForm = ({
-  meal,
-  onSave,
-  onCancel,
-}: {
-  meal: Meal;
-  onSave: (draft: MealDraft) => void;
-  onCancel: () => void;
-}) => {
-  const [draft, setDraft] = useState<MealDraft>({
-    name: meal.name,
-    description: meal.description ?? "",
-  });
-
-  const save = (event: FormEvent) => {
-    event.preventDefault();
-    if (named(draft)) onSave(draft);
-  };
-
-  return (
-    <form onSubmit={save} className="flex flex-col gap-3">
-      <MealFields
-        nameLabel="Name"
-        descriptionLabel="Description"
-        draft={draft}
-        onChange={setDraft}
-        focusName
-      />
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          className={`${loudButtonStyle} flex min-h-11 items-center px-5 text-sm font-medium`}
-        >
-          Save
-        </button>
-        <button type="button" onClick={onCancel} className={quietButtonStyle}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-};
-
 export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
   const { household, working, problem } = openHousehold;
   const meals = household.mealBank;
   const [draft, setDraft] = useState<MealDraft>({ name: "", description: "" });
   const [filter, setFilter] = useState("");
-  const [editing, setEditing] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<string | null>(null);
+  const [opened, setOpened] = useState<Opened | null>(null);
   const [justLanded, setJustLanded] = useState<string | null>(null);
   const filterField = useId();
 
@@ -144,18 +57,22 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
   };
 
   const save = async (meal: Meal, draft: MealDraft) => {
-    if (await openHousehold.editMeal(meal.id, draft)) setEditing(null);
+    if (await openHousehold.editMeal(meal.id, draft)) setOpened(null);
   };
 
   const remove = async (meal: Meal) => {
-    setConfirming(null);
+    setOpened(null);
     await openHousehold.removeMeal(meal.id);
+  };
+
+  const open = (meal: Meal, to: RowOpenTo) => {
+    openHousehold.dismiss();
+    setOpened({ id: meal.id, to });
   };
 
   const narrow = (wanted: string) => {
     setFilter(wanted);
-    setEditing(null);
-    setConfirming(null);
+    setOpened(null);
   };
 
   const { shown, count } = narrowedTo(meals, filter);
@@ -239,75 +156,15 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
                 meal.id === justLanded ? landedRowStyle : settledRowStyle
               }`}
             >
-              {editing === meal.id ? (
-                <MealForm
-                  meal={meal}
-                  onSave={(draft) => void save(meal, draft)}
-                  onCancel={() => setEditing(null)}
-                />
-              ) : (
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className="font-medium break-words text-stone-100">
-                      {meal.name}
-                    </span>
-                    {meal.description && (
-                      <span className="text-sm break-words text-stone-400">
-                        {meal.description}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex shrink-0 gap-2">
-                    {confirming === meal.id ? (
-                      <>
-                        <button
-                          type="button"
-                          aria-label={`Yes, delete ${meal.name}`}
-                          onClick={() => void remove(meal)}
-                          className="flex min-h-11 items-center rounded-full bg-rose-500 px-4 text-sm font-medium text-stone-950 transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
-                        >
-                          Really?
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Keep ${meal.name}`}
-                          onClick={() => setConfirming(null)}
-                          className={quietButtonStyle}
-                        >
-                          Keep
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          aria-label={`Edit ${meal.name}`}
-                          onClick={() => {
-                            openHousehold.dismiss();
-                            setConfirming(null);
-                            setEditing(meal.id);
-                          }}
-                          className={quietButtonStyle}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          aria-label={`Delete ${meal.name}`}
-                          onClick={() => {
-                            openHousehold.dismiss();
-                            setEditing(null);
-                            setConfirming(meal.id);
-                          }}
-                          className={quietButtonStyle}
-                        >
-                          Delete
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              <MealRow
+                meal={meal}
+                openTo={opened?.id === meal.id ? opened.to : null}
+                onEdit={() => open(meal, "editing")}
+                onSave={(draft) => void save(meal, draft)}
+                onAskToDelete={() => open(meal, "confirming")}
+                onDelete={() => void remove(meal)}
+                onClose={() => setOpened(null)}
+              />
             </li>
           ))}
         </ul>
