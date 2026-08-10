@@ -39,6 +39,7 @@ export const HouseholdPage = ({
     setShownView(view);
     setGuiding(isOpen ? false : null);
     setSpinOnArrival(false);
+    if (opening.state === "open") opening.dismiss();
   }
 
   if (!isOpen && guiding !== null) {
@@ -74,7 +75,7 @@ export const HouseholdPage = ({
     );
   }
 
-  const { household, show } = opening;
+  const { household } = opening;
 
   return (
     <AppShell>
@@ -93,25 +94,17 @@ export const HouseholdPage = ({
 
         {view === "settings" ? (
           <HouseholdSettings
-            households={households}
-            household={household}
-            onChange={show}
+            openHousehold={opening}
             onDone={() => onGo(`/${household.slug}`)}
           />
         ) : view === "meal-bank" ? (
           <MealBank
-            households={households}
-            slug={household.slug}
-            meals={household.mealBank}
-            onChange={(mealBank) => show({ ...household, mealBank })}
+            openHousehold={opening}
             onBack={() => onGo(`/${household.slug}`)}
           />
         ) : guiding ? (
           <FirstRun
-            households={households}
-            slug={household.slug}
-            meals={household.mealBank}
-            onChange={(mealBank) => show({ ...household, mealBank })}
+            openHousehold={opening}
             onSpin={() => {
               setSpinOnArrival(true);
               setGuiding(false);
