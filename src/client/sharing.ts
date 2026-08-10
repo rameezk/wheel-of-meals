@@ -1,3 +1,5 @@
+import type { Meal } from "../shared/meal";
+import type { Recipe } from "../shared/recipe";
 import type { Slug } from "../shared/slug";
 import type { Week } from "../shared/week";
 import { dayLabels } from "./days";
@@ -16,6 +18,15 @@ export const weekAsText = (week: Week) =>
   week
     .map(({ day, meal }) => `${dayLabels[day]}: ${meal?.name ?? anEmptyDay}`)
     .join("\n");
+
+export const recipeAsShareable = (
+  name: Meal["name"],
+  recipe: Recipe,
+): Shareable => ({
+  title: name,
+  text: [name, recipe.ingredients, recipe.method].filter(Boolean).join("\n\n"),
+  url: recipe.source ?? undefined,
+});
 
 export const householdLink = (slug: Slug) =>
   new URL(`/${slug}`, location.href).href;

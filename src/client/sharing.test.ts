@@ -1,7 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { Recipe } from "../shared/recipe";
 import type { Week } from "../shared/week";
-import { householdLink, shareOrCopy, weekAsText } from "./sharing";
 import {
+  householdLink,
+  recipeAsShareable,
+  shareOrCopy,
+  weekAsText,
+} from "./sharing";
+import {
+  aMealWithARecipe,
+  aRecipe,
+  aSlug,
+  aSource,
   withAClipboard,
   withAShareSheet,
   withNoSharing,
@@ -39,6 +49,78 @@ describe("a Week as text", () => {
 
   it("says nothing about the days the Household does not cook", () => {
     expect(weekAsText(aWeek)).not.toContain("Friday");
+  });
+});
+
+describe("a Recipe as something to share", () => {
+  const lambCurryWith = (recipe: Recipe) =>
+    recipeAsShareable(aMealWithARecipe.name, recipe);
+
+  it("leads with the Meal's name, then the parts the cook wrote", () => {
+    const shareable = lambCurryWith(
+      aRecipe({
+        source: aSource,
+        ingredients: "1 onion, chopped",
+        method: "Fry the paste.",
+      }),
+    );
+
+    expect(shareable).toEqual({
+      title: "Lamb curry",
+      text: "Lamb curry\n\n1 onion, chopped\n\nFry the paste.",
+      url: aSource,
+    });
+  });
+
+  it("shares a Recipe that is only a Source as that link", () => {
+    expect(lambCurryWith(aRecipe({ source: aSource }))).toEqual({
+      title: "Lamb curry",
+      text: "Lamb curry",
+      url: aSource,
+    });
+  });
+
+  it("shares a Recipe that is only a Method as that text", () => {
+    expect(lambCurryWith(aRecipe({ method: "Fry the paste." }))).toEqual({
+      title: "Lamb curry",
+      text: "Lamb curry\n\nFry the paste.",
+      url: undefined,
+    });
+  });
+
+  it("shares a Recipe that is only Ingredients as that list", () => {
+    expect(lambCurryWith(aRecipe({ ingredients: "1 onion" }))).toEqual({
+      title: "Lamb curry",
+      text: "Lamb curry\n\n1 onion",
+      url: undefined,
+    });
+  });
+
+  it("keeps the line breaks a list and a set of steps were written with", () => {
+    const shareable = lambCurryWith(
+      aRecipe({
+        ingredients: "1 onion, chopped\n2 tbsp butter",
+        method: "Fry the paste.\n\nSimmer for an hour.",
+      }),
+    );
+
+    expect(shareable.text).toBe(
+      "Lamb curry\n\n1 onion, chopped\n2 tbsp butter\n\nFry the paste.\n\nSimmer for an hour.",
+    );
+  });
+
+  it("says nothing that would name the Household", () => {
+    const shareable = lambCurryWith(
+      aRecipe({
+        source: aSource,
+        ingredients: "1 onion, chopped",
+        method: "Fry the paste.",
+      }),
+    );
+
+    const whole = [shareable.title, shareable.text, shareable.url].join("\n");
+    expect(whole).not.toContain(aSlug);
+    expect(whole).not.toContain(location.origin);
   });
 });
 

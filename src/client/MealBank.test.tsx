@@ -17,6 +17,9 @@ import {
   aRecipe,
   aSlug,
   aSource,
+  withAClipboard,
+  withAShareSheet,
+  withNoSharing,
 } from "./test-fixtures";
 
 const lasagne: Meal = {
@@ -805,5 +808,145 @@ describe("a Meal's Recipe", () => {
 
     expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
     expect(rows()).toHaveLength(1);
+  });
+});
+
+describe("sharing a Recipe", () => {
+  const written: Meal = {
+    ...aMealWithARecipe,
+    recipe: aRecipe({
+      source: aSource,
+      ingredients: "1 onion, chopped\n2 tbsp butter",
+      method: "Fry the paste.\n\nSimmer for an hour.",
+    }),
+  };
+
+  const asShared =
+    "Lamb curry\n\n1 onion, chopped\n2 tbsp butter\n\nFry the paste.\n\nSimmer for an hour.";
+
+  const shareControl = () =>
+    screen.queryByRole("button", { name: "Share the Recipe" });
+
+  afterEach(withNoSharing);
+
+  it("hands the share sheet the Recipe as text where there is one", async () => {
+    const share = withAShareSheet();
+    await showBank([written]);
+
+    await openRecipe(written);
+    await press("Share the Recipe");
+
+    expect(share).toHaveBeenCalledWith({
+      title: "Lamb curry",
+      text: asShared,
+      url: aSource,
+    });
+    expect(await screen.findByText("Shared.")).toBeInTheDocument();
+  });
+
+  it("copies the Recipe where there is no share sheet", async () => {
+    const writeText = withAClipboard();
+    await showBank([written]);
+
+    await openRecipe(written);
+    await press("Share the Recipe");
+
+    expect(writeText).toHaveBeenCalledWith(`${asShared}\n${aSource}`);
+    expect(
+      await screen.findByText("Copied to the clipboard."),
+    ).toBeInTheDocument();
+  });
+
+  it("owns up when nothing was copied", async () => {
+    const writeText = withAClipboard();
+    writeText.mockRejectedValue(new Error("no"));
+    await showBank([written]);
+
+    await openRecipe(written);
+    await press("Share the Recipe");
+
+    expect(
+      await screen.findByText("Nothing was copied. Try that again."),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves the Recipe as it was when the share sheet is dismissed", async () => {
+    const share = withAShareSheet();
+    const dismissal = new Error("no");
+    dismissal.name = "AbortError";
+    share.mockRejectedValue(dismissal);
+    const households = await showBank([written]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(written);
+    await press("Share the Recipe");
+
+    expect(screen.queryByText("Shared.")).not.toBeInTheDocument();
+    expect(theSheet(written)).toBeInTheDocument();
+    expect(sourceField()).toHaveValue(aSource);
+    expect(setting).not.toHaveBeenCalled();
+  });
+
+  it("leaves the sheet open to carry on reading", async () => {
+    withAShareSheet();
+    await showBank([written]);
+
+    await openRecipe(written);
+    await press("Share the Recipe");
+
+    expect(theSheet(written)).toBeInTheDocument();
+    expect(methodField()).toHaveValue("Fry the paste.\n\nSimmer for an hour.");
+  });
+
+  it("shares the Recipe as saved rather than what is being typed", async () => {
+    const share = withAShareSheet();
+    await showBank([written]);
+
+    await openRecipe(written);
+    await userEvent.type(methodField(), " Not this.");
+    await press("Share the Recipe");
+
+    expect(share).toHaveBeenCalledWith({
+      title: "Lamb curry",
+      text: asShared,
+      url: aSource,
+    });
+  });
+
+  it("offers nothing to share on a Meal with no Recipe", async () => {
+    await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+
+    expect(shareControl()).not.toBeInTheDocument();
+  });
+
+  it("can be reached and operated with the keyboard alone", async () => {
+    const share = withAShareSheet();
+    await showBank([written]);
+
+    await openRecipe(written);
+    methodField().focus();
+    await userEvent.tab();
+    await userEvent.tab();
+    await userEvent.tab();
+    expect(shareControl()).toHaveFocus();
+
+    await userEvent.keyboard("{Enter}");
+
+    expect(share).toHaveBeenCalled();
+  });
+
+  it("stays offered while the emptying is being confirmed", async () => {
+    await showBank([written]);
+
+    await openRecipe(written);
+    await userEvent.clear(sourceField());
+    await userEvent.clear(ingredientsField());
+    await userEvent.clear(methodField());
+    await press("Save");
+
+    expect(await screen.findByText(removesTheRecipe)).toBeInTheDocument();
+    expect(shareControl()).toBeInTheDocument();
   });
 });

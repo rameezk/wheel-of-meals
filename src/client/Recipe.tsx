@@ -7,6 +7,8 @@ import {
   sourceMaxLength,
 } from "../shared/recipe";
 import type { RecipeDraft } from "./households";
+import { ShareButton } from "./Share";
+import { recipeAsShareable } from "./sharing";
 import {
   alertStyle,
   fieldStyle,
@@ -150,7 +152,7 @@ export const TheRecipe = ({
           </p>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex items-start gap-2">
           {asking ? (
             <>
               <button
@@ -188,6 +190,13 @@ export const TheRecipe = ({
                 Cancel
               </button>
             </>
+          )}
+
+          {meal.recipe && (
+            <ShareButton
+              label="Share the Recipe"
+              shareable={recipeAsShareable(meal.name, meal.recipe)}
+            />
           )}
         </div>
       </div>
