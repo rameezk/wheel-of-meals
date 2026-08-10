@@ -6,6 +6,7 @@ import type { MealDraft, RecipeDraft } from "./households";
 import type { OpenHousehold } from "./open-household";
 import { MealFields } from "./MealFields";
 import { MealRow, type RowOpenTo } from "./MealRow";
+import { forgetDraft } from "./recipe-drafts";
 import { RecipeSheet } from "./RecipeSheet";
 import {
   alertStyle,
@@ -65,12 +66,15 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
   };
 
   const saveRecipe = async (meal: Meal, draft: RecipeDraft) => {
-    if (await openHousehold.setRecipe(meal.id, draft)) setOpened(null);
+    if (!(await openHousehold.setRecipe(meal.id, draft))) return;
+
+    forgetDraft(meal.id);
+    setOpened(null);
   };
 
   const remove = async (meal: Meal) => {
     setOpened(null);
-    await openHousehold.removeMeal(meal.id);
+    if (await openHousehold.removeMeal(meal.id)) forgetDraft(meal.id);
   };
 
   const open = (meal: Meal, to: Opened["to"]) => {

@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, type FormEvent } from "react";
 import type { Meal } from "../shared/meal";
 import {
   ingredientsMaxLength,
@@ -7,12 +7,14 @@ import {
   sourceMaxLength,
 } from "../shared/recipe";
 import type { RecipeDraft } from "./households";
+import type { RecipeWriting } from "./recipe-writing";
 import { ShareButton } from "./Share";
 import { recipeAsShareable } from "./sharing";
 import {
   alertStyle,
   fieldStyle,
   loudButtonStyle,
+  noticeStyle,
   quietButtonStyle,
   reallyButtonStyle,
 } from "./styles";
@@ -22,8 +24,8 @@ type TheRecipeProps = {
   headingId: string;
   working: boolean;
   problem: string | null;
+  writing: RecipeWriting;
   onSave: (draft: RecipeDraft) => void;
-  onCancel: () => void;
 };
 
 const sourceLinkStyle =
@@ -44,33 +46,29 @@ const emptied = (draft: RecipeDraft) => {
 export const removesTheRecipe =
   "Saving this empties the Recipe, which removes it.";
 
+export const discardsTheWriting =
+  "Closing this throws away what has not been saved.";
+
+export const unsavedFromBefore =
+  "You wrote this last time and did not save it. Save it to keep it, or discard it.";
+
 export const TheRecipe = ({
   meal,
   headingId,
   working,
   problem,
+  writing,
   onSave,
-  onCancel,
 }: TheRecipeProps) => {
-  const [draft, setDraft] = useState<RecipeDraft>({
-    source: meal.recipe?.source ?? "",
-    ingredients: meal.recipe?.ingredients ?? "",
-    method: meal.recipe?.method ?? "",
-  });
-  const [asking, setAsking] = useState(false);
+  const { draft, asking, change } = writing;
   const sourceField = useId();
   const ingredientsField = useId();
   const methodField = useId();
 
-  const change = (part: Partial<RecipeDraft>) => {
-    setAsking(false);
-    setDraft({ ...draft, ...part });
-  };
-
   const save = (event: FormEvent) => {
     event.preventDefault();
     if (meal.recipe && emptied(draft)) {
-      setAsking(true);
+      writing.askToEmpty();
       return;
     }
 
@@ -86,6 +84,20 @@ export const TheRecipe = ({
         >
           <span className="text-emerald-300">Recipe</span> for {meal.name}
         </h3>
+
+        {writing.restored && (
+          <div className={`${noticeStyle} flex flex-col items-start gap-3`}>
+            <p>{unsavedFromBefore}</p>
+            <button
+              type="button"
+              aria-label={`Discard the unsaved writing for ${meal.name}`}
+              onClick={writing.dropTheDraft}
+              className={quietButtonStyle}
+            >
+              Discard
+            </button>
+          </div>
+        )}
 
         <label className={labelStyle} htmlFor={sourceField}>
           Source (optional)
@@ -148,12 +160,12 @@ export const TheRecipe = ({
       <div className="flex shrink-0 flex-col gap-2">
         {asking && (
           <p role="alert" className="text-sm text-stone-400">
-            {removesTheRecipe}
+            {asking === "emptying" ? removesTheRecipe : discardsTheWriting}
           </p>
         )}
 
         <div className="flex items-start gap-2">
-          {asking ? (
+          {asking === "emptying" ? (
             <>
               <button
                 type="button"
@@ -167,7 +179,26 @@ export const TheRecipe = ({
               <button
                 type="button"
                 aria-label={`Keep the Recipe for ${meal.name}`}
-                onClick={() => setAsking(false)}
+                onClick={writing.keepWriting}
+                className={quietButtonStyle}
+              >
+                Keep
+              </button>
+            </>
+          ) : asking === "leaving" ? (
+            <>
+              <button
+                type="button"
+                aria-label={`Yes, discard the writing for ${meal.name}`}
+                onClick={writing.leave}
+                className={`${reallyButtonStyle} flex min-h-11 items-center px-5 text-sm font-medium`}
+              >
+                Really?
+              </button>
+              <button
+                type="button"
+                aria-label={`Keep writing the Recipe for ${meal.name}`}
+                onClick={writing.keepWriting}
                 className={quietButtonStyle}
               >
                 Keep
@@ -184,7 +215,7 @@ export const TheRecipe = ({
               </button>
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={writing.askToLeave}
                 className={quietButtonStyle}
               >
                 Cancel

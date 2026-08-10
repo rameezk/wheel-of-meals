@@ -92,6 +92,7 @@ const announcement = () => screen.getByRole("status").textContent;
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
+  localStorage.clear();
 });
 
 describe("the Meal Bank", () => {
@@ -595,6 +596,7 @@ describe("a Meal's Recipe", () => {
     await openRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
     await press("Cancel");
+    await press(`Yes, discard the writing for ${aMealWithARecipe.name}`);
 
     expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
     expect(setting).not.toHaveBeenCalled();
