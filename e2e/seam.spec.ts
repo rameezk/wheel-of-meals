@@ -12,8 +12,11 @@ test("a new Household is created, guided, spun, and comes back filled", async ({
   page,
   request,
 }) => {
-  await page.goto("/");
+  const landing = await page.goto("/");
 
+  expect((await landing?.allHeaders())?.["referrer-policy"]).toBe(
+    "same-origin",
+  );
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     "content",
     /noindex/,

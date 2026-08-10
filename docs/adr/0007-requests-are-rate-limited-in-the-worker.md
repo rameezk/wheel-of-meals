@@ -126,11 +126,20 @@ limits are set for the order of magnitude, not the exact number, so this changes
 nothing about what they stop.
 
 Adding an endpoint of either kind gets rate limiting without anyone remembering
-to ask for it: the middleware counts every request, choosing the limiter by HTTP
-method, so a new endpoint is limited the moment it is routed - and a request to a
-path that routes nowhere is counted too, so probing for an unmetered endpoint
-costs the prober the same quota as using one. An endpoint that should be metered
-*separately* - not merely limited - is the only case that needs a change here.
+to ask for it: the middleware counts every request under `/api/`, choosing the
+limiter by HTTP method, so a new endpoint is limited the moment it is routed -
+and a request to a path under `/api/` that routes nowhere is counted too, so
+probing for an unmetered endpoint costs the prober the same quota as using one.
+An endpoint that should be metered *separately* - not merely limited - is the
+only case that needs a change here.
+
+The middleware is scoped to `/api/` rather than to everything the Worker sees,
+because the Worker now runs in front of the static assets too: `Referrer-Policy`
+is declared on every response (ADR-0002), and the app's own document is served by
+the assets binding. Metering assets would put a page load's scripts, styles and
+icons on a caller's read budget, which is not what any of the three numbers above
+were reasoned about. The scope keeps the counters measuring exactly what they
+measured when only `/api/` reached the Worker at all.
 
 `GET /api/health` is counted against the read limit, which is the same 300 per
 minute an uptime check will never approach.
