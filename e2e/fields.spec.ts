@@ -50,7 +50,7 @@ test("every text field computes above the size that makes mobile Safari zoom", a
 
   await page.getByRole("button", { name: "Skip for now" }).click();
 
-  await page.getByRole("button", { name: /^Meal Bank,/ }).click();
+  await page.getByRole("button", { name: /^Open the Meal Bank/ }).click();
   await expect(page.getByLabel("Filter")).toBeVisible();
   await fieldsAreTooBigToZoom(page, "the Meal Bank");
 

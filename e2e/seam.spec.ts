@@ -59,7 +59,9 @@ test("a new Household is created, guided, spun, and comes back filled", async ({
   await page.reload();
 
   await expect(
-    page.getByRole("button", { name: "Meal Bank, 5 Meals" }),
+    page.getByRole("button", {
+      name: /^Open the Meal Bank\s*5 Meals to draw from/,
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "What do you cook often?" }),
