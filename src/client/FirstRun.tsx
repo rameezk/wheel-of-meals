@@ -1,8 +1,7 @@
 import { useId, useState, type FormEvent } from "react";
-import { mealNameMaxLength, type Meal } from "../shared/meal";
-import type { Slug } from "../shared/slug";
-import { messageFor, type Households } from "./households";
+import { mealNameMaxLength } from "../shared/meal";
 import { mealsHeld } from "./meals";
+import type { OpenHousehold } from "./open-household";
 import { mealSuggestions } from "./suggestions";
 import {
   alertStyle,
@@ -14,27 +13,17 @@ import {
 } from "./styles";
 
 type FirstRunProps = {
-  slug: Slug;
-  meals: Meal[];
-  onChange: (meals: Meal[]) => void;
+  openHousehold: OpenHousehold;
   onSpin: () => void;
   onSkip: () => void;
-  households: Households;
 };
 
 const suggestionStyle = `${quietButtonStyle} gap-1.5 hover:text-emerald-200 disabled:opacity-50`;
 
-export const FirstRun = ({
-  slug,
-  meals,
-  onChange,
-  onSpin,
-  onSkip,
-  households,
-}: FirstRunProps) => {
+export const FirstRun = ({ openHousehold, onSpin, onSkip }: FirstRunProps) => {
+  const { household, working, problem } = openHousehold;
+  const meals = household.mealBank;
   const [typed, setTyped] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
-  const [working, setWorking] = useState(false);
   const nameField = useId();
 
   const held = new Set(meals.map((meal) => meal.name.toLowerCase()));
@@ -42,22 +31,8 @@ export const FirstRun = ({
     (name) => !held.has(name.toLowerCase()),
   );
 
-  const take = async (name: string) => {
-    setWorking(true);
-    setProblem(null);
-    try {
-      onChange([
-        ...meals,
-        await households.addMeal(slug, { name, description: "" }),
-      ]);
-      return true;
-    } catch (error) {
-      setProblem(messageFor(error));
-      return false;
-    } finally {
-      setWorking(false);
-    }
-  };
+  const take = async (name: string) =>
+    (await openHousehold.addMeal({ name, description: "" })) !== null;
 
   const addTyped = async (event: FormEvent) => {
     event.preventDefault();

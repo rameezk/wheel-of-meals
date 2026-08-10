@@ -250,6 +250,23 @@ describe("a Household page", () => {
     );
   });
 
+  it("leaves a refusal behind when the cook moves to another view", async () => {
+    const households = householdsInMemory(aStockedHousehold);
+    const { rerender } = render(thePage(households, { view: "meal-bank" }));
+    await screen.findByLabelText("Filter");
+
+    households.refuseNextChange(tooManyRequests);
+    await userEvent.type(screen.getByLabelText(/^meal$/i), "Lasagne");
+    await userEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      tooManyRequests.message,
+    );
+
+    rerender(thePage(households, { view: "settings" }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("says so when the lookup fails", async () => {
     const households = householdsInMemory(aHousehold);
     households.failNextOpen();

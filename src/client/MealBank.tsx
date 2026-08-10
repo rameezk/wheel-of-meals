@@ -4,10 +4,10 @@ import {
   mealNameMaxLength,
   type Meal,
 } from "../shared/meal";
-import type { Slug } from "../shared/slug";
 import { narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import { messageFor, type Households, type MealDraft } from "./households";
+import type { MealDraft } from "./households";
+import type { OpenHousehold } from "./open-household";
 import {
   alertStyle,
   fieldStyle,
@@ -19,11 +19,8 @@ import {
 } from "./styles";
 
 type MealBankProps = {
-  slug: Slug;
-  meals: Meal[];
-  onChange: (meals: Meal[]) => void;
+  openHousehold: OpenHousehold;
   onBack: () => void;
-  households: Households;
 };
 
 const byName = (one: Meal, other: Meal) =>
@@ -117,17 +114,11 @@ const MealForm = ({
   );
 };
 
-export const MealBank = ({
-  slug,
-  meals,
-  onChange,
-  onBack,
-  households,
-}: MealBankProps) => {
+export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
+  const { household, working, problem } = openHousehold;
+  const meals = household.mealBank;
   const [draft, setDraft] = useState<MealDraft>({ name: "", description: "" });
   const [filter, setFilter] = useState("");
-  const [problem, setProblem] = useState<string | null>(null);
-  const [working, setWorking] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [justLanded, setJustLanded] = useState<string | null>(null);
@@ -140,60 +131,25 @@ export const MealBank = ({
     return () => clearTimeout(settle);
   }, [justLanded]);
 
-  const attempt = async <Changed,>(
-    change: () => Promise<{ meals: Meal[]; changed: Changed }>,
-  ) => {
-    setWorking(true);
-    setProblem(null);
-    try {
-      const outcome = await change();
-      onChange(outcome.meals);
-      return outcome;
-    } catch (error) {
-      setProblem(messageFor(error));
-      return null;
-    } finally {
-      setWorking(false);
-    }
-  };
-
   const add = async (event: FormEvent) => {
     event.preventDefault();
     if (!named(draft)) return;
 
-    const outcome = await attempt(async () => {
-      const added = await households.addMeal(slug, draft);
-      return { meals: [...meals, added], changed: added };
-    });
-
-    if (!outcome) return;
+    const added = await openHousehold.addMeal(draft);
+    if (!added) return;
 
     setDraft({ name: "", description: "" });
-    setJustLanded(outcome.changed.id);
-    if (!shownBy(outcome.changed, filter)) setFilter("");
+    setJustLanded(added.id);
+    if (!shownBy(added, filter)) setFilter("");
   };
 
   const save = async (meal: Meal, draft: MealDraft) => {
-    const outcome = await attempt(async () => {
-      const edited = await households.editMeal(slug, meal.id, draft);
-      return {
-        meals: meals.map((held) => (held.id === edited.id ? edited : held)),
-        changed: edited,
-      };
-    });
-
-    if (outcome) setEditing(null);
+    if (await openHousehold.editMeal(meal.id, draft)) setEditing(null);
   };
 
   const remove = async (meal: Meal) => {
     setConfirming(null);
-    await attempt(async () => {
-      await households.removeMeal(slug, meal.id);
-      return {
-        meals: meals.filter((held) => held.id !== meal.id),
-        changed: meal,
-      };
-    });
+    await openHousehold.removeMeal(meal.id);
   };
 
   const narrow = (wanted: string) => {
@@ -327,7 +283,7 @@ export const MealBank = ({
                           type="button"
                           aria-label={`Edit ${meal.name}`}
                           onClick={() => {
-                            setProblem(null);
+                            openHousehold.dismiss();
                             setConfirming(null);
                             setEditing(meal.id);
                           }}
@@ -339,7 +295,7 @@ export const MealBank = ({
                           type="button"
                           aria-label={`Delete ${meal.name}`}
                           onClick={() => {
-                            setProblem(null);
+                            openHousehold.dismiss();
                             setEditing(null);
                             setConfirming(meal.id);
                           }}

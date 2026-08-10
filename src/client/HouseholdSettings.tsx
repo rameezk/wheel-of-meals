@@ -4,11 +4,10 @@ import {
   householdNameMaxLength,
   noCookingDays,
   type CookingDay,
-  type Household,
   type UpdateHousehold,
 } from "../shared/household";
 import { dayLabels } from "./days";
-import { messageFor, type Households } from "./households";
+import type { OpenHousehold } from "./open-household";
 import {
   alertStyle,
   fieldStyle,
@@ -20,22 +19,17 @@ const sameDays = (one: CookingDay[], other: CookingDay[]) =>
   one.length === other.length && one.every((day) => other.includes(day));
 
 type HouseholdSettingsProps = {
-  household: Household;
-  onChange: (household: Household) => void;
+  openHousehold: OpenHousehold;
   onDone: () => void;
-  households: Households;
 };
 
 export const HouseholdSettings = ({
-  household,
-  onChange,
+  openHousehold,
   onDone,
-  households,
 }: HouseholdSettingsProps) => {
+  const { household, working, problem } = openHousehold;
   const [name, setName] = useState(household.name ?? "");
   const [days, setDays] = useState<CookingDay[]>(household.cookingDays);
-  const [problem, setProblem] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const toggle = (day: CookingDay) =>
     setDays((chosen) =>
@@ -62,16 +56,7 @@ export const HouseholdSettings = ({
       return;
     }
 
-    setSaving(true);
-    setProblem(null);
-    try {
-      onChange(await households.update(household.slug, wanted));
-      onDone();
-    } catch (error) {
-      setProblem(messageFor(error));
-    } finally {
-      setSaving(false);
-    }
+    if (await openHousehold.update(wanted)) onDone();
   };
 
   return (
@@ -137,7 +122,7 @@ export const HouseholdSettings = ({
       <div className="flex gap-2">
         <button
           type="submit"
-          disabled={saving || days.length === 0}
+          disabled={working || days.length === 0}
           className={`${loudButtonStyle} flex min-h-11 items-center px-6 text-sm font-medium disabled:opacity-50`}
         >
           Save
