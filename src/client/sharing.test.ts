@@ -18,9 +18,12 @@ afterEach(withNoSharing);
 const aWeek: Week = [
   {
     day: "sunday",
-    meal: { id: "1", name: "Butter chicken", description: null },
+    meal: { id: "1", name: "Butter chicken", description: null, recipe: null },
   },
-  { day: "monday", meal: { id: "2", name: "Lasagne", description: null } },
+  {
+    day: "monday",
+    meal: { id: "2", name: "Lasagne", description: null, recipe: null },
+  },
 ];
 
 describe("a Week as text", () => {

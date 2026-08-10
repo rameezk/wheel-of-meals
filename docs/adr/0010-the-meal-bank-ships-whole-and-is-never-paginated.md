@@ -5,14 +5,24 @@
 Meal Bank page filters that array in the browser as the cook types. There is no
 page parameter, no cursor, no search endpoint, and no windowed list.
 
-The 500-[[Meal]] cap is what makes this safe. A Meal is a name and an optional
-description, both short, so a full Bank stays a few hundred kilobytes of JSON at
-its absolute worst and is a fraction of that in practice. It is read back in one
-indexed lookup by Household, already ordered by lowercased name. That is a
-payload the phone in a kitchen can hold without noticing, and the cap is
-enforced in the Worker rather than assumed here.
+Three caps are what make this safe, and they are the load-bearing figures of this
+record rather than incidental validation: 500 [[Meal]]s to a [[Meal Bank]], 500
+characters of description on a Meal, and 1,000 characters of [[Source]] on its
+[[Recipe]]. A Meal's name adds at most 100 more. A Meal carrying all of it is
+roughly 1.7 KB of JSON, so the worst Bank anyone can construct is around 850 KB -
+under a megabyte, and a small fraction of that in practice, because almost no Meal
+carries a description and a Source at their caps. It is read back in one indexed
+lookup by Household, already ordered by lowercased name. That is a payload the
+phone in a kitchen can hold without noticing, and the caps are enforced in the
+Worker rather than assumed here.
 
-The cap exists as a guard on the payload and the database, not as a statement
+A Recipe's other two parts, its [[Ingredients]] and its [[Method]], are free text
+and are not wired up yet. Whatever caps they get are decisions about this record:
+they are the first thing that could take the worst-case payload past a megabyte,
+and they should be chosen against the arithmetic above rather than picked to feel
+generous.
+
+The 500-Meal cap exists as a guard on the payload and the database, not as a statement
 about how many Meals a Household is allowed to like. Nothing in the product
 tells the cook there is a limit, because no real Bank approaches it - a
 Household that cooks something new every week for a decade lands near 500.
@@ -46,8 +56,8 @@ measurably janks on a mid-range phone - measured, not assumed.
 The filter is instant and works with no network, because it never leaves the
 device. Nothing about typing in it can fail.
 
-Raising the 500-Meal cap is not a one-line change to a constant. It is a
-decision about this record, and the number in the Worker should be read as the
+Raising any of the three caps is not a one-line change to a constant. It is a
+decision about this record, and each number in the Worker should be read as the
 load-bearing assumption it is.
 
 The Household payload grows with the Bank, and the Meal Bank page is the only

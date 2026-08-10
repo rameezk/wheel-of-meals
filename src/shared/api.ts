@@ -28,5 +28,8 @@ export const mealBankFull = {
 export const invalidMeal = (message: string) =>
   ({ error: "invalid_meal", message }) as const;
 
+export const invalidRecipe = (message: string) =>
+  ({ error: "invalid_recipe", message }) as const;
+
 export const invalidHousehold = (message: string) =>
   ({ error: "invalid_household", message }) as const;

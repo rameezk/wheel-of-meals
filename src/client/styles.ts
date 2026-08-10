@@ -7,6 +7,9 @@ export const loudButtonStyle =
 export const quietButtonStyle =
   "flex min-h-11 items-center rounded-full border border-stone-700 px-4 text-sm text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
 
+export const openableTextStyle =
+  "underline decoration-stone-600 decoration-dotted underline-offset-4 transition";
+
 export const rowStyle = "rounded-2xl border px-4 py-3 transition-colors";
 
 export const settledRowStyle = "border-stone-800 bg-stone-900/60 duration-700";

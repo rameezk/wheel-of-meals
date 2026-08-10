@@ -2,7 +2,12 @@ import { useEffect, useState } from "react";
 import type { Household, UpdateHousehold } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import type { Slug } from "../shared/slug";
-import { messageFor, type Households, type MealDraft } from "./households";
+import {
+  messageFor,
+  type Households,
+  type MealDraft,
+  type RecipeDraft,
+} from "./households";
 import { forget, remember } from "./remembered";
 
 type NotOpen =
@@ -11,6 +16,13 @@ type NotOpen =
   | { state: "failed"; message: string };
 
 type Held = NotOpen | { state: "open"; household: Household };
+
+const inPlace = (held: Household, changed: Meal): Household => ({
+  ...held,
+  mealBank: held.mealBank.map((meal) =>
+    meal.id === changed.id ? changed : meal,
+  ),
+});
 
 export type OpenHousehold = {
   state: "open";
@@ -22,6 +34,7 @@ export type OpenHousehold = {
   update: (changes: UpdateHousehold) => Promise<Household | null>;
   addMeal: (draft: MealDraft) => Promise<Meal | null>;
   editMeal: (id: string, draft: MealDraft) => Promise<Meal | null>;
+  setRecipe: (id: string, draft: RecipeDraft) => Promise<Meal | null>;
   removeMeal: (id: string) => Promise<Meal | null>;
 };
 
@@ -119,15 +132,10 @@ export const useOpenHousehold = (
       ),
 
     editMeal: (id, draft) =>
-      attempt(
-        () => households.editMeal(slug, id, draft),
-        (held, edited) => ({
-          ...held,
-          mealBank: held.mealBank.map((meal) =>
-            meal.id === edited.id ? edited : meal,
-          ),
-        }),
-      ),
+      attempt(() => households.editMeal(slug, id, draft), inPlace),
+
+    setRecipe: (id, draft) =>
+      attempt(() => households.setRecipe(slug, id, draft), inPlace),
 
     removeMeal: async (id) => {
       const going = household.mealBank.find((meal) => meal.id === id);

@@ -2,10 +2,11 @@ import { useEffect, useId, useState, type FormEvent } from "react";
 import type { Meal } from "../shared/meal";
 import { named, narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import type { MealDraft } from "./households";
+import type { MealDraft, RecipeDraft } from "./households";
 import type { OpenHousehold } from "./open-household";
 import { MealFields } from "./MealFields";
 import { MealRow, type RowOpenTo } from "./MealRow";
+import { RecipeSheet } from "./RecipeSheet";
 import {
   alertStyle,
   fieldStyle,
@@ -20,10 +21,13 @@ type MealBankProps = {
   onBack: () => void;
 };
 
-type Opened = { id: string; to: RowOpenTo };
+type Opened = { id: string; to: RowOpenTo | "recipe" };
 
 const byName = (one: Meal, other: Meal) =>
   one.name.localeCompare(other.name, undefined, { sensitivity: "base" });
+
+const inRow = (opened: Opened | null, meal: Meal): RowOpenTo | null =>
+  opened?.id === meal.id && opened.to !== "recipe" ? opened.to : null;
 
 const backButtonStyle =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-700 text-lg text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
@@ -60,12 +64,16 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
     if (await openHousehold.editMeal(meal.id, draft)) setOpened(null);
   };
 
+  const saveRecipe = async (meal: Meal, draft: RecipeDraft) => {
+    if (await openHousehold.setRecipe(meal.id, draft)) setOpened(null);
+  };
+
   const remove = async (meal: Meal) => {
     setOpened(null);
     await openHousehold.removeMeal(meal.id);
   };
 
-  const open = (meal: Meal, to: RowOpenTo) => {
+  const open = (meal: Meal, to: Opened["to"]) => {
     openHousehold.dismiss();
     setOpened({ id: meal.id, to });
   };
@@ -77,6 +85,10 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
 
   const { shown, count } = narrowedTo(meals, filter);
   const landed = meals.find((meal) => meal.id === justLanded);
+  const readingRecipe =
+    opened?.to === "recipe"
+      ? (meals.find((meal) => meal.id === opened.id) ?? null)
+      : null;
 
   return (
     <section className="flex w-full flex-col gap-5">
@@ -128,7 +140,7 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
         </button>
       </form>
 
-      {problem && (
+      {problem && !readingRecipe && (
         <p role="alert" className={alertStyle}>
           {problem}
         </p>
@@ -158,7 +170,8 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
             >
               <MealRow
                 meal={meal}
-                openTo={opened?.id === meal.id ? opened.to : null}
+                openTo={inRow(opened, meal)}
+                onOpenRecipe={() => open(meal, "recipe")}
                 onEdit={() => open(meal, "editing")}
                 onSave={(draft) => void save(meal, draft)}
                 onAskToDelete={() => open(meal, "confirming")}
@@ -168,6 +181,16 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
             </li>
           ))}
         </ul>
+      )}
+
+      {readingRecipe && (
+        <RecipeSheet
+          meal={readingRecipe}
+          working={working}
+          problem={problem}
+          onSave={(draft) => void saveRecipe(readingRecipe, draft)}
+          onClose={() => setOpened(null)}
+        />
       )}
     </section>
   );

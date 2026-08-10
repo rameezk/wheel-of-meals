@@ -6,12 +6,12 @@ import { dayLabels } from "./days";
 import { flipStaggerMillis } from "./motion";
 import { ShareButton } from "./Share";
 import { weekAsText } from "./sharing";
-import { loudButtonStyle } from "./styles";
+import { loudButtonStyle, openableTextStyle } from "./styles";
 import { TheWheel } from "./Wheel";
 
 const nameStyle = "min-w-0 text-right break-words text-stone-100";
 
-const descriptionButtonStyle = `${nameStyle} cursor-pointer underline decoration-stone-600 decoration-dotted underline-offset-4 transition hover:decoration-stone-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400`;
+const descriptionButtonStyle = `${nameStyle} ${openableTextStyle} cursor-pointer hover:decoration-stone-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400`;
 
 const respinButtonStyle =
   "-my-1.5 flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full border border-stone-800 text-lg text-stone-400 transition hover:border-stone-600 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:border-stone-800/60 disabled:text-stone-600 disabled:hover:border-stone-800/60 disabled:hover:text-stone-600";

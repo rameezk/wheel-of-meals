@@ -83,6 +83,24 @@ describe("rate limiting Meal Bank writes", () => {
   });
 });
 
+describe("saving a Recipe", () => {
+  it("is counted against the same writes as the rest of the Meal Bank", async () => {
+    const slug = await createdSlug("203.0.113.10");
+
+    const responses = await withinOneWindow(() =>
+      times(pastWrites, (n) =>
+        request(
+          `/api/households/${slug}/meals/meal-${n}/recipe`,
+          "PUT",
+          "203.0.113.10",
+        ),
+      ),
+    );
+
+    expect(refused(responses).length).toBeGreaterThan(0);
+  });
+});
+
 describe("a write to a path that routes nowhere", () => {
   it("is still counted, so a crawler cannot probe for free", async () => {
     const responses = await withinOneWindow(() =>

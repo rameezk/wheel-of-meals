@@ -8,6 +8,7 @@ const aBankOf = (size: number): Meal[] =>
     id: `meal-${index}`,
     name: `Meal ${index}`,
     description: null,
+    recipe: null,
   }));
 
 const everyDay: CookingDay[] = [
@@ -164,7 +165,12 @@ describe("a re-spin", () => {
   });
 
   it("fills an empty day once the Meal Bank has a Meal to spare", () => {
-    const spare: Meal = { id: "extra", name: "Extra", description: null };
+    const spare: Meal = {
+      id: "extra",
+      name: "Extra",
+      description: null,
+      recipe: null,
+    };
     const week = spin(aBankOf(2), everyDay, always(0));
 
     const respun = respin(week, "thursday", [...aBankOf(2), spare], always(0));

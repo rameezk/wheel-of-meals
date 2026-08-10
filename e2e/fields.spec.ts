@@ -54,6 +54,13 @@ test("every text field computes above the size that makes mobile Safari zoom", a
   await expect(page.getByLabel("Filter")).toBeVisible();
   await fieldsAreTooBigToZoom(page, "the Meal Bank");
 
+  await page.getByLabel("Meal", { exact: true }).fill("Lasagne");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+  await page.getByRole("button", { name: "Lasagne", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await fieldsAreTooBigToZoom(page, "the Recipe sheet");
+
+  await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "Back to the Household" }).click();
 
   await page.getByRole("button", { name: "Settings" }).click();
