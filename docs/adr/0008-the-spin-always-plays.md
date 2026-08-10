@@ -38,7 +38,21 @@ Their only relief is tapping to skip, which lands the [[Week]] immediately. That
 relief arrives *after* the motion has started, which is the weakest part of this
 decision.
 
-`e2e/household.spec.ts` asserts that the wheel appears under
-`emulateMedia({ reducedMotion: "reduce" })`. That test failing means someone has
-restored the check - most likely in good faith, during an accessibility pass. The
-failure is the intended signal, not a bug. Read this ADR before making it pass.
+Nothing in the suite guards this. `e2e/household.spec.ts` asserted that the
+wheel appears under `emulateMedia({ reducedMotion: "reduce" })` until #58
+replaced that file with `e2e/seam.spec.ts`, and the assertion was not carried
+across. It stays gone: reinstating it costs a browser run, a [[Household]] and a
+stocked [[Meal Bank]] to prove the absence of a media query that `grep` settles
+in a second, and the only thing it would make true is this paragraph.
+
+So this record is the entire control. A `prefers-reduced-motion` query can be
+added to the stylesheet, or a `matchMedia` call to the client, and the suite
+will stay green. Someone reaching for that check during an accessibility pass -
+in good faith, and for good reasons, since the cost above is real - will get no
+failure to read. This record is what they have instead, which is why the case
+for the decision is written at the length it is.
+
+That is [ADR-0013](0013-the-repository-is-public-deliberately.md)'s lesson
+moved from GitHub's settings into the suite. A configuration read back
+successfully is not evidence that it applies, and a passing test run is not
+evidence that anything asserted the thing you are about to change.
