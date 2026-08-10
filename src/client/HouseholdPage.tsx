@@ -1,26 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { notFound } from "../shared/api";
-import { type Household } from "../shared/household";
 import type { Slug } from "../shared/slug";
 import { AppShell } from "./AppShell";
 import { FirstRun } from "./FirstRun";
 import { firstRunSkipped, skipFirstRun } from "./guiding";
-import { messageFor, type Households } from "./households";
+import type { Households } from "./households";
 import { HouseholdSettings } from "./HouseholdSettings";
 import { MealBank } from "./MealBank";
 import { mealsHeld } from "./meals";
-import { forget, remember } from "./remembered";
+import { useOpenHousehold } from "./open-household";
 import type { View } from "./route";
 import { ShareButton } from "./Share";
 import { householdLink } from "./sharing";
 import { quietButtonStyle } from "./styles";
 import { TheWeek } from "./Week";
-
-type Lookup =
-  | { state: "looking" }
-  | { state: "found"; household: Household }
-  | { state: "missing" }
-  | { state: "failed"; message: string };
 
 type HouseholdPageProps = {
   slug: Slug;
@@ -35,52 +28,32 @@ export const HouseholdPage = ({
   onGo,
   households,
 }: HouseholdPageProps) => {
-  const [lookup, setLookup] = useState<Lookup>({ state: "looking" });
-  const [guiding, setGuiding] = useState(false);
+  const opening = useOpenHousehold(slug, households);
+  const [guiding, setGuiding] = useState<boolean | null>(null);
   const [spinOnArrival, setSpinOnArrival] = useState(false);
   const [shownView, setShownView] = useState(view);
 
+  const isOpen = opening.state === "open";
+
   if (shownView !== view) {
     setShownView(view);
-    setGuiding(false);
+    setGuiding(isOpen ? false : null);
     setSpinOnArrival(false);
   }
 
-  useEffect(() => {
-    const controller = new AbortController();
+  if (!isOpen && guiding !== null) {
+    setGuiding(null);
+    setSpinOnArrival(false);
+  }
 
-    households
-      .open(slug, controller.signal)
-      .then((household) => {
-        if (controller.signal.aborted) return;
+  if (opening.state === "open" && guiding === null) {
+    setGuiding(
+      opening.household.mealBank.length === 0 &&
+        !firstRunSkipped(opening.household.slug),
+    );
+  }
 
-        if (!household) {
-          setLookup({ state: "missing" });
-          return;
-        }
-
-        setLookup({ state: "found", household });
-        setGuiding(
-          household.mealBank.length === 0 && !firstRunSkipped(household.slug),
-        );
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted)
-          setLookup({ state: "failed", message: messageFor(error) });
-      });
-
-    return () => controller.abort();
-  }, [slug, households]);
-
-  const { state } = lookup;
-  const name = lookup.state === "found" ? lookup.household.name : null;
-
-  useEffect(() => {
-    if (state === "found") remember({ slug, name });
-    else if (state === "missing") forget(slug);
-  }, [state, name, slug]);
-
-  if (lookup.state === "looking") {
+  if (opening.state === "looking") {
     return (
       <AppShell>
         <p className="text-stone-400">Opening…</p>
@@ -88,11 +61,11 @@ export const HouseholdPage = ({
     );
   }
 
-  if (lookup.state === "missing" || lookup.state === "failed") {
+  if (opening.state === "missing" || opening.state === "failed") {
     return (
       <AppShell>
         <p role="alert" className="max-w-md text-center text-rose-300">
-          {lookup.state === "missing" ? notFound.message : lookup.message}
+          {opening.state === "missing" ? notFound.message : opening.message}
         </p>
         <a href="/" className="text-stone-400 underline underline-offset-4">
           Back to the start
@@ -101,9 +74,7 @@ export const HouseholdPage = ({
     );
   }
 
-  const { household } = lookup;
-  const show = (household: Household) =>
-    setLookup({ state: "found", household });
+  const { household, show } = opening;
 
   return (
     <AppShell>
