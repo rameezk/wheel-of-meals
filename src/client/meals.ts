@@ -1,4 +1,7 @@
 import type { Meal } from "../shared/meal";
+import type { MealDraft } from "./households";
+
+export const named = (draft: MealDraft) => draft.name.trim().length > 0;
 
 export const mealsHeld = (held: number) =>
   `${held} ${held === 1 ? "Meal" : "Meals"}`;
