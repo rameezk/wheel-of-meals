@@ -19,5 +19,8 @@ export const settledRowStyle = "border-stone-800 bg-stone-900/60 duration-700";
 
 export const landedRowStyle = "border-emerald-500/60 bg-emerald-500/10";
 
+export const noticeStyle =
+  "rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200";
+
 export const alertStyle =
   "rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-rose-200";

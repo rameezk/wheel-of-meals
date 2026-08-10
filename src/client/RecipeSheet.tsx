@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import type { Meal } from "../shared/meal";
 import type { RecipeDraft } from "./households";
 import { TheRecipe } from "./Recipe";
+import { useRecipeWriting } from "./recipe-writing";
 
 type RecipeSheetProps = {
   meal: Meal;
@@ -21,6 +22,7 @@ export const RecipeSheet = ({
   onSave,
   onClose,
 }: RecipeSheetProps) => {
+  const writing = useRecipeWriting(meal, onClose);
   const headingId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const cameFrom = useRef(
@@ -28,11 +30,11 @@ export const RecipeSheet = ({
       ? document.activeElement
       : null,
   );
-  const closing = useRef(onClose);
+  const latest = useRef(writing);
 
   useEffect(() => {
-    closing.current = onClose;
-  }, [onClose]);
+    latest.current = writing;
+  });
 
   useEffect(() => {
     const returnTo = cameFrom.current;
@@ -44,8 +46,14 @@ export const RecipeSheet = ({
     let wentBack = false;
 
     const back = () => {
+      if (latest.current.unsaved) {
+        window.history.pushState({ recipe: meal.id }, "");
+        latest.current.askToLeave();
+        return;
+      }
+
       wentBack = true;
-      closing.current();
+      latest.current.askToLeave();
     };
 
     window.addEventListener("popstate", back);
@@ -58,7 +66,7 @@ export const RecipeSheet = ({
   const keptWithin = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
-      onClose();
+      writing.askToLeave();
       return;
     }
 
@@ -95,8 +103,8 @@ export const RecipeSheet = ({
           headingId={headingId}
           working={working}
           problem={problem}
+          writing={writing}
           onSave={onSave}
-          onCancel={onClose}
         />
       </div>
     </div>
