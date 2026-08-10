@@ -3,10 +3,13 @@ import { daysOfTheWeek, type CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import { respin, spareMeals, spin, type Week } from "../shared/week";
 import { dayLabels } from "./days";
+import type { RecipeDraft } from "./households";
 import { flipStaggerMillis } from "./motion";
+import type { OpenHousehold } from "./open-household";
+import { RecipeSheet } from "./RecipeSheet";
 import { ShareButton } from "./Share";
 import { weekAsText } from "./sharing";
-import { loudButtonStyle, openableTextStyle } from "./styles";
+import { loudButtonStyle, openableTextStyle, quietButtonStyle } from "./styles";
 import { TheWheel } from "./Wheel";
 
 const nameStyle = "min-w-0 text-right break-words text-stone-100";
@@ -17,8 +20,7 @@ const respinButtonStyle =
   "-my-1.5 flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full border border-stone-800 text-lg text-stone-400 transition hover:border-stone-600 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:border-stone-800/60 disabled:text-stone-600 disabled:hover:border-stone-800/60 disabled:hover:text-stone-600";
 
 type TheWeekProps = {
-  cookingDays: CookingDay[];
-  mealBank: Meal[];
+  openHousehold: OpenHousehold;
   spinOnArrival?: boolean;
 };
 
@@ -32,10 +34,24 @@ const readOutDay = ({ day, meal }: Week[number]) =>
 
 const readOut = (week: Week) => week.map(readOutDay).join(", ");
 
-const DrawnMeal = ({ meal }: { meal: Meal }) => {
+const whatThePanelHolds = (meal: Meal) =>
+  meal.description && meal.recipe
+    ? "description and Recipe"
+    : meal.recipe
+      ? "Recipe"
+      : "description";
+
+const DrawnMeal = ({
+  meal,
+  onOpenRecipe,
+}: {
+  meal: Meal;
+  onOpenRecipe: () => void;
+}) => {
   const [open, setOpen] = useState(false);
 
-  if (!meal.description) return <span className={nameStyle}>{meal.name}</span>;
+  if (!meal.description && !meal.recipe)
+    return <span className={nameStyle}>{meal.name}</span>;
 
   return (
     <span className="flex min-w-0 flex-col items-end gap-1">
@@ -46,23 +62,35 @@ const DrawnMeal = ({ meal }: { meal: Meal }) => {
         className={descriptionButtonStyle}
       >
         {meal.name}
-        <span className="sr-only">, description</span>
+        <span className="sr-only">, {whatThePanelHolds(meal)}</span>
       </button>
 
-      {open && (
+      {open && meal.description && (
         <span className="text-right text-sm break-words text-stone-400">
           {meal.description}
         </span>
+      )}
+
+      {open && meal.recipe && (
+        <button
+          type="button"
+          aria-label={`Recipe for ${meal.name}`}
+          onClick={onOpenRecipe}
+          className={`${quietButtonStyle} mt-0.5`}
+        >
+          Recipe
+        </button>
       )}
     </span>
   );
 };
 
 export const TheWeek = ({
-  cookingDays,
-  mealBank,
+  openHousehold,
   spinOnArrival = false,
 }: TheWeekProps) => {
+  const { working, problem } = openHousehold;
+  const { cookingDays, mealBank } = openHousehold.household;
   const [week, setWeek] = useState<Week | null>(null);
   const [landing, setLanding] = useState<Week | null>(() =>
     spinOnArrival && mealBank.length > 0
@@ -72,12 +100,17 @@ export const TheWeek = ({
   const [spun, setSpun] = useState(0);
   const [respun, setRespun] = useState<Partial<Record<CookingDay, number>>>({});
   const [said, setSaid] = useState("");
+  const [readingRecipeOf, setReadingRecipeOf] = useState<string | null>(null);
+
+  const asHeldNow = (drawn: Meal) =>
+    mealBank.find((held) => held.id === drawn.id) ?? drawn;
 
   const land = (drawn: Week) => {
     setLanding(null);
     setWeek(drawn);
     setSpun((count) => count + 1);
     setRespun({});
+    setReadingRecipeOf(null);
     setSaid(readOut(drawn));
   };
 
@@ -91,11 +124,25 @@ export const TheWeek = ({
 
     setWeek(respunWeek);
     setRespun((counts) => ({ ...counts, [day]: (counts[day] ?? 0) + 1 }));
+    setReadingRecipeOf(null);
     setSaid(readOutDay({ day, meal: drawnOn(respunWeek, day) }));
+  };
+
+  const readTheRecipe = (meal: Meal) => {
+    if (landing) return;
+
+    openHousehold.dismiss();
+    setReadingRecipeOf(meal.id);
+  };
+
+  const saveTheRecipe = async (meal: Meal, draft: RecipeDraft) => {
+    if (await openHousehold.setRecipe(meal.id, draft)) setReadingRecipeOf(null);
   };
 
   const flips = spun > 0;
   const noSpares = week !== null && spareMeals(week, mealBank).length === 0;
+  const readingRecipe =
+    mealBank.find((meal) => meal.id === readingRecipeOf) ?? null;
 
   return (
     <section className="flex w-full flex-col gap-5">
@@ -153,7 +200,10 @@ export const TheWeek = ({
                 {cooking && (
                   <span className="flex min-w-0 items-baseline justify-end gap-3">
                     {meal ? (
-                      <DrawnMeal meal={meal} />
+                      <DrawnMeal
+                        meal={asHeldNow(meal)}
+                        onOpenRecipe={() => readTheRecipe(meal)}
+                      />
                     ) : (
                       <span className={nameStyle}>
                         {week && (
@@ -216,6 +266,16 @@ export const TheWeek = ({
           key={weekAsText(week)}
           label="Share the Week"
           shareable={{ title: "The Week", text: weekAsText(week) }}
+        />
+      )}
+
+      {readingRecipe && (
+        <RecipeSheet
+          meal={readingRecipe}
+          working={working}
+          problem={problem}
+          onSave={(draft) => void saveTheRecipe(readingRecipe, draft)}
+          onClose={() => setReadingRecipeOf(null)}
         />
       )}
     </section>

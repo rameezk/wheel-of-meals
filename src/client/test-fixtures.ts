@@ -2,6 +2,7 @@ import { vi } from "vitest";
 import type { Household } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import type { Recipe } from "../shared/recipe";
+import type { OpenHousehold } from "./open-household";
 
 export const aSlug = "banana-apple-delicious-sauce";
 
@@ -35,6 +36,24 @@ export const aMealWithARecipe: Meal = {
   description: null,
   recipe: aRecipe({ source: aSource }),
 };
+
+export const anOpenHousehold = (
+  household: Partial<Household>,
+  parts: Partial<OpenHousehold> = {},
+): OpenHousehold => ({
+  state: "open",
+  household: { ...aHousehold, ...household },
+  working: false,
+  problem: null,
+  dismiss: () => {},
+  show: () => {},
+  update: () => Promise.resolve(null),
+  addMeal: () => Promise.resolve(null),
+  editMeal: () => Promise.resolve(null),
+  setRecipe: () => Promise.resolve(null),
+  removeMeal: () => Promise.resolve(null),
+  ...parts,
+});
 
 export const aStockedHousehold: Household = {
   ...aHousehold,
