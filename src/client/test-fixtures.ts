@@ -1,6 +1,7 @@
 import { vi } from "vitest";
 import type { Household } from "../shared/household";
 import type { Meal } from "../shared/meal";
+import type { Recipe } from "../shared/recipe";
 
 export const aSlug = "banana-apple-delicious-sauce";
 
@@ -21,11 +22,18 @@ export const aMeal: Meal = {
 
 export const aSource = "https://recipes.example.com/butter-chicken";
 
+export const aRecipe = (parts: Partial<Recipe>): Recipe => ({
+  source: null,
+  ingredients: null,
+  method: null,
+  ...parts,
+});
+
 export const aMealWithARecipe: Meal = {
   id: "meal-9",
   name: "Lamb curry",
   description: null,
-  recipe: { source: aSource },
+  recipe: aRecipe({ source: aSource }),
 };
 
 export const aStockedHousehold: Household = {

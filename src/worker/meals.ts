@@ -23,18 +23,25 @@ const mealFallback = "That Meal cannot be saved as it is.";
 
 const recipeFallback = "That Recipe cannot be saved as it is.";
 
-const mealColumns = "id, name, description, source";
+const mealColumns = "id, name, description, source, ingredients, method";
 
 const rowSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
   source: z.string().nullable(),
+  ingredients: z.string().nullable(),
+  method: z.string().nullable(),
 });
 
 const toMeal = (row: unknown): Meal => {
-  const { id, name, description, source } = rowSchema.parse(row);
-  return mealSchema.parse({ id, name, description, recipe: recipeOf(source) });
+  const { id, name, description, ...parts } = rowSchema.parse(row);
+  return mealSchema.parse({
+    id,
+    name,
+    description,
+    recipe: recipeOf(parts),
+  });
 };
 
 export const readMealBank = async (
@@ -107,11 +114,19 @@ const writeRecipe = (
   db
     .prepare(
       `UPDATE meals
-       SET source = ?3
+       SET source = ?3,
+           ingredients = ?4,
+           method = ?5
        WHERE id = ?1 AND household_slug = ?2
        RETURNING ${mealColumns}`,
     )
-    .bind(id, slug, recipe.source)
+    .bind(
+      id,
+      slug,
+      recipe?.source ?? null,
+      recipe?.ingredients ?? null,
+      recipe?.method ?? null,
+    )
     .first();
 
 const removeMeal = (db: D1Database, slug: Slug, id: string) =>

@@ -1,11 +1,12 @@
 import { failure } from "../shared/api";
 import type { Household, UpdateHousehold } from "../shared/household";
 import type { Meal } from "../shared/meal";
+import type { TypedRecipe } from "../shared/recipe";
 import type { Slug } from "../shared/slug";
 
 export type MealDraft = { name: string; description: string };
 
-export type RecipeDraft = { source: string };
+export type RecipeDraft = TypedRecipe;
 
 export class Refusal extends Error {}
 

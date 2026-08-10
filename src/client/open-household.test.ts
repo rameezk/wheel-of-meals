@@ -15,6 +15,7 @@ import { remember, remembered } from "./remembered";
 import {
   aHousehold,
   aMeal,
+  aRecipe,
   aSlug,
   aSource,
   aStockedHousehold,
@@ -187,10 +188,21 @@ describe("changing an Open Household", () => {
     const reopen = vi.spyOn(households, "open");
 
     const written = await act(() =>
-      open().setRecipe(aMeal.id, { source: aSource }),
+      open().setRecipe(aMeal.id, {
+        source: aSource,
+        ingredients: "1 onion\n2 tbsp butter",
+        method: "Fry the paste.",
+      }),
     );
 
-    expect(written).toEqual({ ...aMeal, recipe: { source: aSource } });
+    expect(written).toEqual({
+      ...aMeal,
+      recipe: aRecipe({
+        source: aSource,
+        ingredients: "1 onion\n2 tbsp butter",
+        method: "Fry the paste.",
+      }),
+    });
     expect(open().household.mealBank).toEqual([written]);
     expect(reopen).not.toHaveBeenCalled();
   });
@@ -199,11 +211,13 @@ describe("changing an Open Household", () => {
     const { open } = await opened(
       householdsInMemory({
         ...aStockedHousehold,
-        mealBank: [{ ...aMeal, recipe: { source: aSource } }],
+        mealBank: [{ ...aMeal, recipe: aRecipe({ source: aSource }) }],
       }),
     );
 
-    const written = await act(() => open().setRecipe(aMeal.id, { source: "" }));
+    const written = await act(() =>
+      open().setRecipe(aMeal.id, { source: "", ingredients: "", method: "" }),
+    );
 
     expect(written).toEqual(aMeal);
     expect(open().household.mealBank).toEqual([aMeal]);

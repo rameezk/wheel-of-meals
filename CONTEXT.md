@@ -44,14 +44,14 @@ _Avoid_: url, link, website, reference, citation
 
 **Ingredients**:
 What a [[Recipe]] calls for, as one piece of free text the cook typed rather than
-a structured list of quantities. Defined here because a [[Recipe]] is defined by
-its three parts; only the [[Source]] is wired up so far.
+a structured list of quantities. Capped at 1,000 characters, kept line for line
+as it was typed, and never parsed - nothing here knows what a tablespoon is.
 _Avoid_: shopping list, groceries, items, quantities
 
 **Method**:
 How a [[Recipe]] is cooked, as one piece of free text the cook typed rather than
-numbered steps the system understands. Defined here because a [[Recipe]] is
-defined by its three parts; only the [[Source]] is wired up so far.
+numbered steps the system understands. Capped at 2,000 characters and kept line
+for line as it was typed, so steps read as steps.
 _Avoid_: instructions, directions, steps, procedure
 
 **Cooking Days**:

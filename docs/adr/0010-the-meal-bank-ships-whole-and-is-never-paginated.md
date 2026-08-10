@@ -5,22 +5,22 @@
 Meal Bank page filters that array in the browser as the cook types. There is no
 page parameter, no cursor, no search endpoint, and no windowed list.
 
-Three caps are what make this safe, and they are the load-bearing figures of this
+Five caps are what make this safe, and they are the load-bearing figures of this
 record rather than incidental validation: 500 [[Meal]]s to a [[Meal Bank]], 500
-characters of description on a Meal, and 1,000 characters of [[Source]] on its
-[[Recipe]]. A Meal's name adds at most 100 more. A Meal carrying all of it is
-roughly 1.7 KB of JSON, so the worst Bank anyone can construct is around 850 KB -
-under a megabyte, and a small fraction of that in practice, because almost no Meal
-carries a description and a Source at their caps. It is read back in one indexed
-lookup by Household, already ordered by lowercased name. That is a payload the
-phone in a kitchen can hold without noticing, and the caps are enforced in the
-Worker rather than assumed here.
+characters of description on a Meal, and, on its [[Recipe]], 1,000 characters of
+[[Source]], 1,000 of [[Ingredients]] and 2,000 of [[Method]]. A Meal's name adds
+at most 100 more. A Meal carrying all of it is roughly 4.7 KB of JSON, so the
+worst Bank anyone can construct is around 2.3 MB. It is read back in one indexed
+lookup by Household, already ordered by lowercased name, and the caps are
+enforced in the Worker rather than assumed here.
 
-A Recipe's other two parts, its [[Ingredients]] and its [[Method]], are free text
-and are not wired up yet. Whatever caps they get are decisions about this record:
-they are the first thing that could take the worst-case payload past a megabyte,
-and they should be chosen against the arithmetic above rather than picked to feel
-generous.
+That worst case is a Household that has written a full recipe out 500 times, and
+no real Bank comes near it: almost every Meal is a name and a description, a
+handful carry a Source, and the few that are written out land in the tens of
+kilobytes together. The megabyte the first three caps stayed under was the guard;
+with a Recipe now holding its Ingredients and its Method, it becomes the trigger
+instead. A real Household measured shipping more than a megabyte is the signal to
+revisit the options below, not to quietly shave a cap.
 
 The 500-Meal cap exists as a guard on the payload and the database, not as a statement
 about how many Meals a Household is allowed to like. Nothing in the product
@@ -56,7 +56,7 @@ measurably janks on a mid-range phone - measured, not assumed.
 The filter is instant and works with no network, because it never leaves the
 device. Nothing about typing in it can fail.
 
-Raising any of the three caps is not a one-line change to a constant. It is a
+Raising any of the five caps is not a one-line change to a constant. It is a
 decision about this record, and each number in the Worker should be read as the
 load-bearing assumption it is.
 

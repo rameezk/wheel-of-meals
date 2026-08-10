@@ -3,7 +3,12 @@ import type { Meal } from "../shared/meal";
 import type { MealDraft } from "./households";
 import { named } from "./meals";
 import { MealFields } from "./MealFields";
-import { loudButtonStyle, openableTextStyle, quietButtonStyle } from "./styles";
+import {
+  loudButtonStyle,
+  openableTextStyle,
+  quietButtonStyle,
+  reallyButtonStyle,
+} from "./styles";
 
 const MealForm = ({
   meal,
@@ -87,7 +92,7 @@ export const MealRow = ({
           <span className={nameStyle}>{meal.name}</span>
           {meal.recipe && (
             <span className="shrink-0 text-sm text-emerald-300">
-              <span aria-hidden>↗</span>
+              <span aria-hidden>{meal.recipe.source ? "↗" : "≡"}</span>
               <span className="sr-only">, {hasARecipe}</span>
             </span>
           )}
@@ -105,7 +110,7 @@ export const MealRow = ({
               type="button"
               aria-label={`Yes, delete ${meal.name}`}
               onClick={onDelete}
-              className="flex min-h-11 items-center rounded-full bg-rose-500 px-4 text-sm font-medium text-stone-950 transition hover:bg-rose-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-rose-300"
+              className={`${reallyButtonStyle} flex min-h-11 items-center px-4 text-sm font-medium`}
             >
               Really?
             </button>

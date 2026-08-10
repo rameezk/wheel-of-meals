@@ -103,8 +103,28 @@ test("a new Household is created, guided, spun, and comes back filled", async ({
   await expect(followIt).toHaveAttribute("target", "_blank");
   await expect(followIt).toHaveAttribute("rel", "noopener noreferrer");
 
-  await sheet.getByLabel(/^Source/).fill("");
+  const ingredients = "12 tortillas\n2 limes\nA white cabbage";
+  const method = "Fry the fish hot and fast.\n\nWarm the tortillas last.";
+  await sheet.getByLabel(/^Ingredients/).fill(ingredients);
+  await sheet.getByLabel(/^Method/).fill(method);
   await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet).toBeHidden();
+
+  await page.reload();
+  await marked.click();
+  await expect(sheet.getByLabel(/^Ingredients/)).toHaveValue(ingredients);
+  await expect(sheet.getByLabel(/^Method/)).toHaveValue(method);
+
+  await sheet.getByLabel(/^Source/).fill("");
+  await sheet.getByLabel(/^Ingredients/).fill("");
+  await sheet.getByLabel(/^Method/).fill("");
+  await sheet.getByRole("button", { name: "Save" }).click();
+
+  await sheet.getByRole("button", { name: /^Keep the Recipe/ }).click();
+  await expect(sheet).toBeVisible();
+
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await sheet.getByRole("button", { name: /^Yes, remove the Recipe/ }).click();
 
   await expect(openTheRecipe).toBeVisible();
   await expect(marked).toHaveCount(0);
