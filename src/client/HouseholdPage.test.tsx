@@ -14,6 +14,7 @@ import { mealSuggestions } from "./suggestions";
 import {
   aHousehold,
   aMeal,
+  aMealWithARecipe,
   aSlug,
   aStockedHousehold,
   withAShareSheet,
@@ -21,6 +22,8 @@ import {
 } from "./test-fixtures";
 
 const anotherSlug = "toast-jam-butter-plate";
+
+const friedLonger = "Fry the paste for two minutes longer than the page says";
 
 type Opening = { slug?: Slug; view?: View; onGo?: (path: string) => void };
 
@@ -211,6 +214,74 @@ describe("a Household page", () => {
 
     expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
       aMeal.name,
+    );
+  });
+
+  it("writes a Recipe edited from the Week back into the Meal Bank", async () => {
+    const households = householdsInMemory({
+      ...aHousehold,
+      cookingDays: ["sunday"],
+      mealBank: [aMealWithARecipe],
+    });
+    const { rerender } = render(thePage(households));
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^spin/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: `${aMealWithARecipe.name}, Recipe`,
+      }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: `Recipe for ${aMealWithARecipe.name}`,
+      }),
+    );
+    await userEvent.type(screen.getByLabelText(/method/i), friedLonger);
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    rerender(thePage(households, { view: "meal-bank" }));
+    await userEvent.click(await screen.findByText(aMealWithARecipe.name));
+
+    expect(screen.getByLabelText(/method/i)).toHaveValue(friedLonger);
+  });
+
+  it("drops the way in when the Recipe is emptied from the Week", async () => {
+    render(
+      thePage(
+        householdsInMemory({
+          ...aHousehold,
+          cookingDays: ["sunday"],
+          mealBank: [aMealWithARecipe],
+        }),
+      ),
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^spin/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /skip/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: `${aMealWithARecipe.name}, Recipe` }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: `Recipe for ${aMealWithARecipe.name}`,
+      }),
+    );
+    await userEvent.clear(screen.getByLabelText(/source/i));
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    await userEvent.click(
+      screen.getByRole("button", { name: /^yes, remove the recipe/i }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^recipe for/i })).toBeNull();
+    expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
+      aMealWithARecipe.name,
     );
   });
 

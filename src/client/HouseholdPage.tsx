@@ -116,11 +116,7 @@ export const HouseholdPage = ({
           />
         ) : (
           <>
-            <TheWeek
-              cookingDays={household.cookingDays}
-              mealBank={household.mealBank}
-              spinOnArrival={spinOnArrival}
-            />
+            <TheWeek openHousehold={opening} spinOnArrival={spinOnArrival} />
 
             <div className="flex w-full flex-col gap-3 border-t border-stone-900 pt-6">
               <button
