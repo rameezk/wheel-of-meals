@@ -26,6 +26,13 @@ const cookingDays: CookingDay[] = [
 const aBankOf = (...names: string[]): Meal[] =>
   names.map((name) => ({ id: `meal-${name}`, name, description: null }));
 
+const aBankOfDescribed = (...described: [string, string][]): Meal[] =>
+  described.map(([name, description]) => ({
+    id: `meal-${name}`,
+    name,
+    description,
+  }));
+
 const fiveMeals = aBankOf(
   "Butter chicken",
   "Lasagne",
@@ -444,5 +451,170 @@ describe("a re-spin", () => {
     click(respinFor("Tuesday"));
 
     expect(theWheel()).toBeNull();
+  });
+});
+
+describe("a Meal's description", () => {
+  const coconutMilk = "The one with the coconut milk";
+  const slowCooker = "Only if the slow cooker is free";
+  const chilliOil = "Extra chilli oil, always";
+
+  const describedBank = [
+    ...aBankOfDescribed(["Butter chicken", coconutMilk]),
+    ...aBankOf("Lasagne"),
+    ...aBankOfDescribed(["Bobotie", slowCooker]),
+    ...aBankOf("Pad thai", "Shakshuka"),
+  ];
+
+  const withASpare = [
+    ...describedBank,
+    ...aBankOfDescribed(["Ramen", chilliOil]),
+  ];
+
+  const justButterChicken = aBankOfDescribed(["Butter chicken", coconutMilk]);
+
+  const openerFor = (day: string) =>
+    within(cardFor(day)).queryByRole("button", { name: /description/i });
+
+  beforeEach(() => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+  });
+
+  it("offers a described Meal's name as something to open", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+
+    expect(openerFor("Sunday")!).toHaveAccessibleName(
+      "Butter chicken, description",
+    );
+  });
+
+  it("leaves a Meal with no description with nothing to open", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+
+    expect(cardFor("Monday")).toHaveTextContent("Lasagne");
+    expect(openerFor("Monday")).toBeNull();
+  });
+
+  it("offers nothing to open before the Week is spun", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    expect(screen.queryByRole("button", { name: /description/i })).toBeNull();
+  });
+
+  it("offers nothing to open on an empty day of a thin Week", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={justButterChicken} />);
+
+    spinIt();
+
+    expect(cardFor("Thursday")).toHaveTextContent(/no meal/i);
+    expect(openerFor("Thursday")).toBeNull();
+  });
+
+  it("offers nothing to open on a day the Household does not cook", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+
+    expect(openerFor("Friday")).toBeNull();
+  });
+
+  it("keeps the description out of the Week until it is asked for", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+
+    expect(screen.queryByText(coconutMilk)).toBeNull();
+    expect(openerFor("Sunday")!).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("reveals the description in full under the name, and hides it again", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+    click(openerFor("Sunday")!);
+
+    expect(
+      within(cardFor("Sunday")).getByText(coconutMilk),
+    ).toBeInTheDocument();
+    expect(openerFor("Sunday")!).toHaveAttribute("aria-expanded", "true");
+
+    click(openerFor("Sunday")!);
+
+    expect(screen.queryByText(coconutMilk)).toBeNull();
+    expect(openerFor("Sunday")!).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("holds two days open at once", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+    click(openerFor("Sunday")!);
+    click(openerFor("Tuesday")!);
+
+    expect(screen.getByText(coconutMilk)).toBeInTheDocument();
+    expect(screen.getByText(slowCooker)).toBeInTheDocument();
+  });
+
+  it("closes every open description when the Week is spun again", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={describedBank} />);
+
+    spinIt();
+    click(openerFor("Sunday")!);
+    click(openerFor("Tuesday")!);
+
+    spinIt();
+
+    expect(screen.queryByText(coconutMilk)).toBeNull();
+    expect(screen.queryByText(slowCooker)).toBeNull();
+  });
+
+  it("closes the day it re-spins, and leaves the other open days alone", () => {
+    render(<TheWeek cookingDays={cookingDays} mealBank={withASpare} />);
+
+    spinIt();
+    click(openerFor("Sunday")!);
+    click(openerFor("Tuesday")!);
+
+    click(respinFor("Tuesday"));
+
+    expect(cardFor("Tuesday")).toHaveTextContent("Ramen");
+    expect(screen.queryByText(slowCooker)).toBeNull();
+    expect(screen.queryByText(chilliOil)).toBeNull();
+    expect(openerFor("Tuesday")!).toHaveAttribute("aria-expanded", "false");
+    expect(
+      within(cardFor("Sunday")).getByText(coconutMilk),
+    ).toBeInTheDocument();
+  });
+
+  it("says the Week out loud as names, without the descriptions", () => {
+    render(<TheWeek cookingDays={["sunday"]} mealBank={justButterChicken} />);
+
+    spinIt();
+    click(openerFor("Sunday")!);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Sunday: Butter chicken",
+    );
+    expect(screen.getByRole("status")).not.toHaveTextContent(coconutMilk);
+  });
+
+  it("shares the Week as names, without the descriptions", async () => {
+    const shared = withAShareSheet();
+    render(<TheWeek cookingDays={["sunday"]} mealBank={justButterChicken} />);
+
+    spinIt();
+    click(openerFor("Sunday")!);
+    await act(async () => {
+      click(screen.getByRole("button", { name: /share/i }));
+      await Promise.resolve();
+    });
+
+    expect(shared).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Sunday: Butter chicken" }),
+    );
   });
 });
