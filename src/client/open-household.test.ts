@@ -12,7 +12,13 @@ import {
   type Opening,
 } from "./open-household";
 import { remember, remembered } from "./remembered";
-import { aHousehold, aMeal, aSlug, aStockedHousehold } from "./test-fixtures";
+import {
+  aHousehold,
+  aMeal,
+  aSlug,
+  aSource,
+  aStockedHousehold,
+} from "./test-fixtures";
 
 const anotherSlug = "toast-jam-butter-plate";
 
@@ -175,6 +181,34 @@ describe("changing an Open Household", () => {
     expect(open().household.mealBank).toEqual([edited]);
   });
 
+  it("patches the Meal a Recipe was written to, leaving the rest of it alone", async () => {
+    const households = householdsInMemory(aStockedHousehold);
+    const { open } = await opened(households);
+    const reopen = vi.spyOn(households, "open");
+
+    const written = await act(() =>
+      open().setRecipe(aMeal.id, { source: aSource }),
+    );
+
+    expect(written).toEqual({ ...aMeal, recipe: { source: aSource } });
+    expect(open().household.mealBank).toEqual([written]);
+    expect(reopen).not.toHaveBeenCalled();
+  });
+
+  it("takes the Recipe off the Meal when an empty one is written", async () => {
+    const { open } = await opened(
+      householdsInMemory({
+        ...aStockedHousehold,
+        mealBank: [{ ...aMeal, recipe: { source: aSource } }],
+      }),
+    );
+
+    const written = await act(() => open().setRecipe(aMeal.id, { source: "" }));
+
+    expect(written).toEqual(aMeal);
+    expect(open().household.mealBank).toEqual([aMeal]);
+  });
+
   it("removes a Meal and resolves to the one that went", async () => {
     const { open } = await opened(householdsInMemory(aStockedHousehold));
 
@@ -212,7 +246,12 @@ describe("changing an Open Household", () => {
     expect(open().working).toBe(true);
 
     await act(async () => {
-      finish({ id: "meal-2", name: "Lasagne", description: null });
+      finish({
+        id: "meal-2",
+        name: "Lasagne",
+        description: null,
+        recipe: null,
+      });
       await change;
     });
     expect(open().working).toBe(false);

@@ -1,6 +1,7 @@
 import { notFound } from "../shared/api";
 import { defaultCookingDays, type Household } from "../shared/household";
 import type { Meal } from "../shared/meal";
+import { readSource, recipeOf } from "../shared/recipe";
 import { generateSlug } from "../shared/slug";
 import { collapseWhitespace } from "../shared/text";
 import { Refusal, type Households, type MealDraft } from "./households";
@@ -122,6 +123,7 @@ export const householdsInMemory = (
           id: freshId(),
           name: collapseWhitespace(draft.name),
           description: described(draft),
+          recipe: null,
         };
         restock(household, [...household.mealBank, meal]);
         return meal;
@@ -140,6 +142,23 @@ export const householdsInMemory = (
           household.mealBank.map((meal) => (meal.id === id ? edited : meal)),
         );
         return edited;
+      }),
+
+    setRecipe: (slug, id, draft) =>
+      change(() => {
+        const household = householdAt(slug);
+        const read = readSource(draft.source);
+        if ("refusal" in read) throw new Refusal(read.refusal);
+
+        const written: Meal = {
+          ...mealOf(household, id),
+          recipe: recipeOf(read.source),
+        };
+        restock(
+          household,
+          household.mealBank.map((meal) => (meal.id === id ? written : meal)),
+        );
+        return written;
       }),
 
     removeMeal: (slug, id) =>

@@ -16,6 +16,16 @@ export const aMeal: Meal = {
   id: "meal-1",
   name: "Butter chicken",
   description: "The one with the coconut milk",
+  recipe: null,
+};
+
+export const aSource = "https://recipes.example.com/butter-chicken";
+
+export const aMealWithARecipe: Meal = {
+  id: "meal-9",
+  name: "Lamb curry",
+  description: null,
+  recipe: { source: aSource },
 };
 
 export const aStockedHousehold: Household = {

@@ -24,13 +24,19 @@ const cookingDays: CookingDay[] = [
 ];
 
 const aBankOf = (...names: string[]): Meal[] =>
-  names.map((name) => ({ id: `meal-${name}`, name, description: null }));
+  names.map((name) => ({
+    id: `meal-${name}`,
+    name,
+    description: null,
+    recipe: null,
+  }));
 
 const aBankOfDescribed = (...described: [string, string][]): Meal[] =>
   described.map(([name, description]) => ({
     id: `meal-${name}`,
     name,
     description,
+    recipe: null,
   }));
 
 const fiveMeals = aBankOf(

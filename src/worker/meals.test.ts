@@ -34,6 +34,18 @@ const editMeal = async (slug: string, id: string, changes: unknown) => {
   return { response, body: await response.json<Body>() };
 };
 
+const setRecipe = async (slug: string, id: string, recipe: unknown) => {
+  const response = await SELF.fetch(
+    `${origin}/api/households/${slug}/meals/${id}/recipe`,
+    {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(recipe),
+    },
+  );
+  return { response, body: await response.json<Body>() };
+};
+
 const deleteMeal = (slug: string, id: string) =>
   SELF.fetch(`${origin}/api/households/${slug}/meals/${id}`, {
     method: "DELETE",
@@ -118,6 +130,7 @@ describe("editing a Meal", () => {
       id: meal.id,
       name: "Butter chicken",
       description: "The one with the coconut milk",
+      recipe: null,
     });
     await expect(mealBank(slug)).resolves.toEqual([body]);
   });
@@ -135,6 +148,7 @@ describe("editing a Meal", () => {
       id: meal.id,
       name: "Lasagna",
       description: "Sunday one",
+      recipe: null,
     });
   });
 
@@ -195,6 +209,169 @@ describe("editing a Meal", () => {
 
     const { response, body } = await editMeal(mine, String(meal.id), {
       name: "Not mine",
+    });
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("not_found");
+  });
+});
+
+describe("setting a Meal's Recipe", () => {
+  const aRecipeFor = async (source: string) => {
+    const slug = await aHousehold();
+    const { body: meal } = await addMeal(slug, {
+      name: "Butter chicken",
+      description: "The one with the coconut milk",
+    });
+    return {
+      slug,
+      id: String(meal.id),
+      ...(await setRecipe(slug, String(meal.id), { source })),
+    };
+  };
+
+  it("keeps the link the Meal came from, on the Meal", async () => {
+    const source = "https://recipes.example.com/butter-chicken";
+
+    const { slug, response, body } = await aRecipeFor(source);
+
+    expect(response.status).toBe(200);
+    expect(body.recipe).toEqual({ source });
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("writes neither the Meal's name nor its description", async () => {
+    const { body } = await aRecipeFor("https://recipes.example.com/one");
+
+    expect(body.name).toBe("Butter chicken");
+    expect(body.description).toBe("The one with the coconut milk");
+  });
+
+  it("takes a bare host and prefixes it with https", async () => {
+    const { body } = await aRecipeFor("recipes.example.com/butter-chicken");
+
+    expect(body.recipe).toEqual({
+      source: "https://recipes.example.com/butter-chicken",
+    });
+  });
+
+  it("rewrites nothing else about a link that needed its query string", async () => {
+    const source =
+      "https://recipes.example.com/r?id=7&utm_source=newsletter#method";
+
+    const { body } = await aRecipeFor(source);
+
+    expect(body.recipe).toEqual({ source });
+  });
+
+  it("refuses a link that is not http or https", async () => {
+    const { response, body } = await aRecipeFor("ftp://recipes.example.com/r");
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("invalid_recipe");
+    expect(String(body.message)).toMatch(/https/);
+  });
+
+  it("refuses a Source that will not parse as a link at all", async () => {
+    const { response, body } = await aRecipeFor("butter chicken, the good one");
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("invalid_recipe");
+    expect(String(body.message)).toMatch(/cannot be read as a link/i);
+  });
+
+  it("takes a Source of exactly 1000 characters and refuses 1001", async () => {
+    const start = "https://recipes.example.com/";
+    const atTheCap = await aRecipeFor(start + "a".repeat(1000 - start.length));
+    const overIt = await aRecipeFor(start + "b".repeat(1001 - start.length));
+
+    expect(atTheCap.response.status).toBe(200);
+    expect(overIt.response.status).toBe(400);
+    expect(String(overIt.body.message)).toMatch(/1000 characters/);
+  });
+
+  it("counts the scheme it prefixes against the cap", async () => {
+    const host = "recipes.example.com/";
+    const bareHost = host + "a".repeat(1000 - "https://".length - host.length);
+
+    const atTheCap = await aRecipeFor(bareHost);
+    const overIt = await aRecipeFor(bareHost + "b");
+
+    expect(atTheCap.body.recipe).toEqual({ source: `https://${bareHost}` });
+    expect(overIt.response.status).toBe(400);
+    expect(String(overIt.body.message)).toMatch(/1000 characters/);
+  });
+
+  it("takes a bare host that names a port", async () => {
+    const { body } = await aRecipeFor("recipes.example.com:8080/tacos");
+
+    expect(body.recipe).toEqual({
+      source: "https://recipes.example.com:8080/tacos",
+    });
+  });
+
+  it("refuses a scheme with nothing after it", async () => {
+    const { response, body } = await aRecipeFor("https://");
+
+    expect(response.status).toBe(400);
+    expect(String(body.message)).toMatch(/cannot be read as a link/i);
+  });
+
+  it("removes the Recipe when the Source is emptied", async () => {
+    const { slug, id } = await aRecipeFor("https://recipes.example.com/one");
+
+    const { response, body } = await setRecipe(slug, id, { source: "  " });
+
+    expect(response.status).toBe(200);
+    expect(body.recipe).toBeNull();
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("leaves the same Recipe behind when it is written twice", async () => {
+    const source = "https://recipes.example.com/one";
+    const { slug, id } = await aRecipeFor(source);
+
+    const { body } = await setRecipe(slug, id, { source });
+
+    expect(body.recipe).toEqual({ source });
+    await expect(mealBank(slug)).resolves.toEqual([body]);
+  });
+
+  it("keeps the Recipe when the Meal is renamed", async () => {
+    const source = "https://recipes.example.com/one";
+    const { slug, id } = await aRecipeFor(source);
+
+    const { body } = await editMeal(slug, id, { name: "Butter Chicken" });
+
+    expect(body).toMatchObject({ name: "Butter Chicken", recipe: { source } });
+  });
+
+  it("takes the Recipe with the Meal when the Meal is deleted", async () => {
+    const { slug, id } = await aRecipeFor("https://recipes.example.com/one");
+    await deleteMeal(slug, id);
+
+    const { body } = await addMeal(slug, { name: "Butter chicken" });
+
+    expect(body.recipe).toBeNull();
+  });
+
+  it("answers an unknown Slug with the same 404 as the other Meal routes", async () => {
+    const { response, body } = await setRecipe(
+      "banana-apple-delicious-sauce",
+      "not-a-meal",
+      { source: "https://recipes.example.com/one" },
+    );
+
+    expect(response.status).toBe(404);
+    expect(body.error).toBe("not_found");
+  });
+
+  it("answers a Meal from another Household with a 404", async () => {
+    const [mine, theirs] = [await aHousehold(), await aHousehold()];
+    const { body: meal } = await addMeal(theirs, { name: "Lasagne" });
+
+    const { response, body } = await setRecipe(mine, String(meal.id), {
+      source: "https://recipes.example.com/one",
     });
 
     expect(response.status).toBe(404);

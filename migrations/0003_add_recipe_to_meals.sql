@@ -1,0 +1,5 @@
+ALTER TABLE meals ADD COLUMN source TEXT;
+
+ALTER TABLE meals ADD COLUMN ingredients TEXT;
+
+ALTER TABLE meals ADD COLUMN method TEXT;

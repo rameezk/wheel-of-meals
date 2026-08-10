@@ -3,7 +3,7 @@ import type { Meal } from "../shared/meal";
 import type { MealDraft } from "./households";
 import { named } from "./meals";
 import { MealFields } from "./MealFields";
-import { loudButtonStyle, quietButtonStyle } from "./styles";
+import { loudButtonStyle, openableTextStyle, quietButtonStyle } from "./styles";
 
 const MealForm = ({
   meal,
@@ -50,9 +50,17 @@ const MealForm = ({
 
 export type RowOpenTo = "editing" | "confirming";
 
+export const hasARecipe = "has a Recipe";
+
+const rowTextStyle =
+  "group flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col items-start justify-center gap-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
+
+const nameStyle = `${openableTextStyle} font-medium break-words text-stone-100 group-hover:decoration-stone-400`;
+
 type MealRowProps = {
   meal: Meal;
   openTo: RowOpenTo | null;
+  onOpenRecipe: () => void;
   onEdit: () => void;
   onSave: (draft: MealDraft) => void;
   onAskToDelete: () => void;
@@ -63,6 +71,7 @@ type MealRowProps = {
 export const MealRow = ({
   meal,
   openTo,
+  onOpenRecipe,
   onEdit,
   onSave,
   onAskToDelete,
@@ -73,16 +82,22 @@ export const MealRow = ({
     <MealForm meal={meal} onSave={onSave} onCancel={onClose} />
   ) : (
     <div className="flex items-start justify-between gap-3">
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="font-medium break-words text-stone-100">
-          {meal.name}
+      <button type="button" onClick={onOpenRecipe} className={rowTextStyle}>
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className={nameStyle}>{meal.name}</span>
+          {meal.recipe && (
+            <span className="shrink-0 text-sm text-emerald-300">
+              <span aria-hidden>↗</span>
+              <span className="sr-only">, {hasARecipe}</span>
+            </span>
+          )}
         </span>
         {meal.description && (
           <span className="text-sm break-words text-stone-400">
             {meal.description}
           </span>
         )}
-      </div>
+      </button>
       <div className="flex shrink-0 gap-2">
         {openTo === "confirming" ? (
           <>

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recipeSchema } from "./recipe";
 import { collapseWhitespace } from "./text";
 
 export const mealNameMaxLength = 100;
@@ -9,6 +10,7 @@ export const mealSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().nullable(),
+  recipe: recipeSchema.nullable(),
 });
 
 export type Meal = z.infer<typeof mealSchema>;

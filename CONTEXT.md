@@ -20,9 +20,39 @@ _Avoid_: list, pool, library, wheel
 
 **Meal**:
 A single dish a [[Household]] is willing to cook, held in its [[Meal Bank]].
-A Meal is a name and, optionally, a free-text description. It is deliberately not
-a recipe: it carries no ingredients, method, or timings.
+A Meal is a name and, optionally, a free-text description. It is not itself a
+[[Recipe]]: how the dish is actually cooked lives in the Recipe a Meal may point
+at, and a Meal that points at none is complete as it stands.
 _Avoid_: dish, recipe, food, item
+
+**Recipe**:
+How a [[Meal]] is cooked, kept with the Meal so nobody has to find it again.
+Optional, and belongs to exactly one Meal - it is reached only through that Meal
+and goes with it when the Meal is deleted. It holds up to three parts, each
+optional on its own: a [[Source]], its [[Ingredients]] and its [[Method]]. A
+Recipe with no parts filled in does not exist, so saving an empty one removes it.
+It is written on its own rather than as part of editing the Meal, so saving a
+Recipe never touches the Meal's name or description.
+_Avoid_: instructions, details, notes, card, page
+
+**Source**:
+The link a [[Recipe]] came from: someone else's page, kept so the cook can open
+it again. An `http` or `https` link, capped at 1,000 characters, and stored as it
+was typed apart from a missing scheme, which is filled in as `https://`. Nothing
+else about it is rewritten - a link that needs its query string keeps it.
+_Avoid_: url, link, website, reference, citation
+
+**Ingredients**:
+What a [[Recipe]] calls for, as one piece of free text the cook typed rather than
+a structured list of quantities. Defined here because a [[Recipe]] is defined by
+its three parts; only the [[Source]] is wired up so far.
+_Avoid_: shopping list, groceries, items, quantities
+
+**Method**:
+How a [[Recipe]] is cooked, as one piece of free text the cook typed rather than
+numbered steps the system understands. Defined here because a [[Recipe]] is
+defined by its three parts; only the [[Source]] is wired up so far.
+_Avoid_: instructions, directions, steps, procedure
 
 **Cooking Days**:
 The days of the week a [[Household]] cooks for itself, and therefore the days a
@@ -49,8 +79,9 @@ _Avoid_: id, code, key, link
 
 **Households Port**:
 The client's whole vocabulary for reaching a [[Household]]: create one, open the
-one a [[Slug]] names, rename it, set its [[Cooking Days]], and add, edit or
-remove a [[Meal]] in its [[Meal Bank]]. It is a client-side interface, not the
+one a [[Slug]] names, rename it, set its [[Cooking Days]], add, edit or remove a
+[[Meal]] in its [[Meal Bank]], and set a Meal's [[Recipe]]. It is a client-side
+interface, not the
 Worker's HTTP API: the HTTP API is merely what one [[Adapter]] happens to speak,
 and the Port names what the client needs rather than what the Worker exposes. A
 [[Spin]] is not on it, because a Spin is drawn in the browser and never leaves
@@ -68,7 +99,8 @@ _Avoid_: driver, backend, provider, implementation, mock, stub
 **Open Household**:
 The [[Household]] this browser has opened with its [[Slug]], held for as long as
 the cook is on it, together with everything they can do to it: rename it, set its
-[[Cooking Days]], and add, edit or remove a [[Meal]] in its [[Meal Bank]].
+[[Cooking Days]], add, edit or remove a [[Meal]] in its [[Meal Bank]], and set a
+Meal's [[Recipe]].
 Opening a Slug yields one of four things - a lookup still running, nothing found,
 a lookup that failed, or an Open Household - and only the last carries the
 Household and those verbs, so nothing further in is handed a Household that is

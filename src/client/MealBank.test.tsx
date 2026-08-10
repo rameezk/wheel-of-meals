@@ -6,15 +6,28 @@ import type { Meal } from "../shared/meal";
 import { HouseholdPage } from "./HouseholdPage";
 import { householdsInMemory } from "./households-in-memory";
 import { landedHighlightMillis } from "./motion";
+import { hasARecipe } from "./MealRow";
 import { landedRowStyle } from "./styles";
-import { aHousehold, aMeal, aSlug } from "./test-fixtures";
+import {
+  aHousehold,
+  aMeal,
+  aMealWithARecipe,
+  aSlug,
+  aSource,
+} from "./test-fixtures";
 
-const lasagne: Meal = { id: "meal-2", name: "Lasagne", description: null };
+const lasagne: Meal = {
+  id: "meal-2",
+  name: "Lasagne",
+  description: null,
+  recipe: null,
+};
 
 const aubergine: Meal = {
   id: "meal-3",
   name: "Aubergine bake",
   description: null,
+  recipe: null,
 };
 
 const showBank = async (meals: Meal[] = []) => {
@@ -47,6 +60,17 @@ const filterBy = (text: string) =>
   userEvent.type(screen.getByLabelText("Filter"), text);
 
 const rows = () => screen.queryAllByRole("listitem");
+
+const rowFor = (meal: Meal) => screen.getByText(meal.name).closest("button");
+
+const openRecipe = (meal: Meal) => userEvent.click(screen.getByText(meal.name));
+
+const sourceField = () => screen.getByLabelText(/source/i);
+
+const theSheet = (meal: Meal) =>
+  screen.queryByRole("dialog", {
+    name: new RegExp(`Recipe for\\s*${meal.name}`),
+  });
 
 const highlightedRow = () =>
   rows().find((row) => row.className.includes(landedRowStyle)) ?? null;
@@ -261,6 +285,7 @@ describe("the Meal Bank", () => {
       id: "meal-3",
       name: "Butter chicken curry",
       description: null,
+      recipe: null,
     };
     await showBank([aMeal, lasagne, curry]);
 
@@ -481,5 +506,162 @@ describe("the Meal Bank", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /something went wrong/i,
     );
+  });
+});
+
+describe("a Meal's Recipe", () => {
+  it("marks the rows that have one and leaves the rest unmarked", async () => {
+    await showBank([aMeal, aMealWithARecipe]);
+
+    expect(rows()[0]).not.toHaveTextContent(hasARecipe);
+    expect(rows()[1]).toHaveTextContent(hasARecipe);
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(`${aMealWithARecipe.name}.*${hasARecipe}`),
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens over the Meal Bank from a row with no Recipe yet", async () => {
+    await showBank([aMeal, aMealWithARecipe]);
+
+    await openRecipe(aMeal);
+
+    expect(theSheet(aMeal)).toBeInTheDocument();
+    expect(sourceField()).toHaveValue("");
+    expect(screen.getByLabelText("Filter")).toBeInTheDocument();
+  });
+
+  it("keeps a Source and marks the row it came from", async () => {
+    const households = await showBank([aMeal]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(aMeal);
+    await userEvent.type(sourceField(), aSource);
+    await press("Save");
+
+    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, { source: aSource });
+    await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
+    expect(rows()[0]).toHaveTextContent(hasARecipe);
+  });
+
+  it("shows a kept Source as a link that opens in a new tab", async () => {
+    await showBank([aMealWithARecipe]);
+
+    await openRecipe(aMealWithARecipe);
+
+    const link = screen.getByRole("link", { name: aSource });
+    expect(link).toHaveAttribute("href", aSource);
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("changes nothing when the sheet is cancelled", async () => {
+    const households = await showBank([aMealWithARecipe]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(aMealWithARecipe);
+    await userEvent.clear(sourceField());
+    await press("Cancel");
+
+    expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
+    expect(setting).not.toHaveBeenCalled();
+    expect(rows()[0]).toHaveTextContent(hasARecipe);
+  });
+
+  it("takes the Recipe and its marker away when the Source is cleared", async () => {
+    await showBank([aMealWithARecipe]);
+
+    await openRecipe(aMealWithARecipe);
+    await userEvent.clear(sourceField());
+    await press("Save");
+
+    await vi.waitFor(() =>
+      expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument(),
+    );
+    expect(rows()[0]).not.toHaveTextContent(hasARecipe);
+  });
+
+  it("refuses a Source that is not a link and says why", async () => {
+    await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+    await userEvent.type(sourceField(), "ftp://recipes.example.com/one");
+    await press("Save");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/https/);
+    expect(theSheet(aMeal)).toBeInTheDocument();
+  });
+
+  it("says so when a save fails and leaves what was typed where it is", async () => {
+    const households = await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+    await userEvent.type(sourceField(), aSource);
+    households.failNextChange();
+    await press("Save");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /something went wrong/i,
+    );
+    expect(theSheet(aMeal)).toBeInTheDocument();
+    expect(sourceField()).toHaveValue(aSource);
+  });
+
+  it("moves focus into the sheet and back to the row it came from", async () => {
+    await showBank([aMeal]);
+    const row = rowFor(aMeal);
+
+    await openRecipe(aMeal);
+    expect(sourceField()).toHaveFocus();
+
+    await press("Cancel");
+
+    expect(row).toHaveFocus();
+  });
+
+  it("closes on Escape without writing anything", async () => {
+    const households = await showBank([aMeal]);
+    const setting = vi.spyOn(households, "setRecipe");
+
+    await openRecipe(aMeal);
+    await userEvent.keyboard("{Escape}");
+
+    expect(theSheet(aMeal)).not.toBeInTheDocument();
+    expect(setting).not.toHaveBeenCalled();
+  });
+
+  it("closes on the back gesture rather than leaving the app", async () => {
+    await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+
+    expect(theSheet(aMeal)).not.toBeInTheDocument();
+  });
+
+  it("leaves the filter as it was when the sheet closes", async () => {
+    await showBank([aMeal, aMealWithARecipe]);
+
+    await filterBy("lamb");
+    await openRecipe(aMealWithARecipe);
+    await press("Cancel");
+
+    expect(screen.getByLabelText("Filter")).toHaveValue("lamb");
+    expect(rows()).toHaveLength(1);
+  });
+
+  it("keeps Edit and Delete working alongside the control that opens it", async () => {
+    await showBank([aMealWithARecipe]);
+
+    await press(`Edit ${aMealWithARecipe.name}`);
+    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await press(`Delete ${aMealWithARecipe.name}`);
+    await press(`Keep ${aMealWithARecipe.name}`);
+
+    expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
+    expect(rows()).toHaveLength(1);
   });
 });

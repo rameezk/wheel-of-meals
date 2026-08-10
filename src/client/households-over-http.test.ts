@@ -2,7 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { duplicateMeal, failure, notFound } from "../shared/api";
 import { Refusal, messageFor } from "./households";
 import { householdsOverHttp } from "./households-over-http";
-import { aHousehold, aMeal, aSlug, answerWith } from "./test-fixtures";
+import {
+  aHousehold,
+  aMeal,
+  aMealWithARecipe,
+  aSlug,
+  aSource,
+  answerWith,
+} from "./test-fixtures";
 
 const answeringRaw = (raw: string) =>
   vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(raw));
@@ -87,6 +94,30 @@ describe("Households over HTTP", () => {
     expect(sent().url).toBe(`/api/households/${aSlug}/meals/${aMeal.id}`);
     expect(sent().method).toBe("PATCH");
     expect(sent().body).toEqual(aDraft);
+  });
+
+  it("sets a Meal's Recipe on its own sub-resource", async () => {
+    answerWith(aMealWithARecipe);
+
+    await expect(
+      householdsOverHttp.setRecipe(aSlug, aMealWithARecipe.id, {
+        source: aSource,
+      }),
+    ).resolves.toEqual(aMealWithARecipe);
+    expect(sent().url).toBe(
+      `/api/households/${aSlug}/meals/${aMealWithARecipe.id}/recipe`,
+    );
+    expect(sent().method).toBe("PUT");
+  });
+
+  it("sends nothing but the Recipe, so a save cannot rename the Meal", async () => {
+    answerWith(aMealWithARecipe);
+
+    await householdsOverHttp.setRecipe(aSlug, aMealWithARecipe.id, {
+      source: aSource,
+    });
+
+    expect(sent().body).toEqual({ source: aSource });
   });
 
   it("removes a Meal from the Meal Bank", async () => {

@@ -64,6 +64,15 @@ export const householdsOverHttp: Households = {
       mealSchema,
     ),
 
+  setRecipe: async (slug, id, draft) =>
+    read(
+      await fetch(
+        `${collection}/${slug}/meals/${id}/recipe`,
+        sending("PUT", draft),
+      ),
+      mealSchema,
+    ),
+
   removeMeal: async (slug, id) => {
     const response = await fetch(`${collection}/${slug}/meals/${id}`, {
       method: "DELETE",

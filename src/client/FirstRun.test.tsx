@@ -187,7 +187,7 @@ describe("the first run", () => {
       screen.getByRole("button", { name: `Add ${aSuggestion}` }),
     ).toBeDisabled();
 
-    land({ id: "meal-1", name: aSuggestion, description: null });
+    land({ id: "meal-1", name: aSuggestion, description: null, recipe: null });
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /^add$/i })).toBeEnabled(),

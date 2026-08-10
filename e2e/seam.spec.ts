@@ -69,4 +69,43 @@ test("a new Household is created, guided, spun, and comes back filled", async ({
   await expect(
     page.getByRole("heading", { name: "What do you cook often?" }),
   ).toHaveCount(0);
+
+  await page.getByRole("button", { name: /^Open the Meal Bank/ }).click();
+
+  const openTheRecipe = page.getByRole("button", {
+    name: "Tacos",
+    exact: true,
+  });
+  await openTheRecipe.click();
+
+  const sheet = page.getByRole("dialog", { name: /Recipe for\s*Tacos/ });
+  await expect(sheet).toBeVisible();
+
+  await page.goBack();
+  await expect(sheet).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`${href}/meal-bank$`));
+
+  await openTheRecipe.click();
+  await sheet.getByLabel(/^Source/).fill("recipes.example.com/tacos?page=2");
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet).toBeHidden();
+
+  const marked = page.getByRole("button", { name: /^Tacos.*has a Recipe/ });
+  await expect(marked).toBeVisible();
+
+  await page.reload();
+  await expect(marked).toBeVisible();
+  await marked.click();
+
+  const followIt = page.getByRole("link", {
+    name: "https://recipes.example.com/tacos?page=2",
+  });
+  await expect(followIt).toHaveAttribute("target", "_blank");
+  await expect(followIt).toHaveAttribute("rel", "noopener noreferrer");
+
+  await sheet.getByLabel(/^Source/).fill("");
+  await sheet.getByRole("button", { name: "Save" }).click();
+
+  await expect(openTheRecipe).toBeVisible();
+  await expect(marked).toHaveCount(0);
 });

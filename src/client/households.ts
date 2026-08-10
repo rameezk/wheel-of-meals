@@ -5,6 +5,8 @@ import type { Slug } from "../shared/slug";
 
 export type MealDraft = { name: string; description: string };
 
+export type RecipeDraft = { source: string };
+
 export class Refusal extends Error {}
 
 export const messageFor = (error: unknown) =>
@@ -16,5 +18,6 @@ export type Households = {
   update: (slug: Slug, changes: UpdateHousehold) => Promise<Household>;
   addMeal: (slug: Slug, draft: MealDraft) => Promise<Meal>;
   editMeal: (slug: Slug, id: string, draft: MealDraft) => Promise<Meal>;
+  setRecipe: (slug: Slug, id: string, draft: RecipeDraft) => Promise<Meal>;
   removeMeal: (slug: Slug, id: string) => Promise<void>;
 };
