@@ -118,7 +118,7 @@ export const HouseholdPage = ({
           <>
             <TheWeek openHousehold={opening} spinOnArrival={spinOnArrival} />
 
-            <div className="flex w-full flex-col gap-3 border-t border-stone-900 pt-6">
+            <div className="flex w-full flex-col gap-5 border-t border-stone-900 pt-6">
               <button
                 type="button"
                 onClick={() => onGo(`/${household.slug}/meal-bank`)}
