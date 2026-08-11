@@ -53,14 +53,14 @@ export const addMealSchema = z
 
 export type AddMeal = z.infer<typeof addMealSchema>;
 
-export const editMealSchema = z
+export const saveMealSchema = z
   .object({
-    name: nameSchema.optional(),
+    name: nameSchema,
     description: descriptionSchema.nullish(),
   })
-  .refine(
-    ({ name, description }) => name !== undefined || description !== undefined,
-    "An edit has to change the name or the description.",
-  );
+  .transform(({ name, description }) => ({
+    name,
+    description: description ?? null,
+  }));
 
-export type EditMeal = z.infer<typeof editMealSchema>;
+export type SaveMeal = z.infer<typeof saveMealSchema>;

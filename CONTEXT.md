@@ -79,9 +79,11 @@ _Avoid_: id, code, key, link
 
 **Households Port**:
 The client's whole vocabulary for reaching a [[Household]]: create one, open the
-one a [[Slug]] names, rename it, set its [[Cooking Days]], add, edit or remove a
-[[Meal]] in its [[Meal Bank]], and set a Meal's [[Recipe]]. It is a client-side
-interface, not the
+one a [[Slug]] names, rename it, set its [[Cooking Days]], and add, save or
+remove a [[Meal]] in its [[Meal Bank]]. A save is whole: it carries a Meal's
+name, description and [[Recipe]] together, so there is one way to save one Meal
+rather than a separate door for its name and another for its Recipe. It is a
+client-side interface, not the
 Worker's HTTP API: the HTTP API is merely what one [[Adapter]] happens to speak,
 and the Port names what the client needs rather than what the Worker exposes. A
 [[Spin]] is not on it, because a Spin is drawn in the browser and never leaves
@@ -99,8 +101,8 @@ _Avoid_: driver, backend, provider, implementation, mock, stub
 **Open Household**:
 The [[Household]] this browser has opened with its [[Slug]], held for as long as
 the cook is on it, together with everything they can do to it: rename it, set its
-[[Cooking Days]], add, edit or remove a [[Meal]] in its [[Meal Bank]], and set a
-Meal's [[Recipe]].
+[[Cooking Days]], and add, save or remove a [[Meal]] in its [[Meal Bank]], where
+a save is whole and carries the Meal's name, description and [[Recipe]] together.
 Opening a Slug yields one of four things - a lookup still running, nothing found,
 a lookup that failed, or an Open Household - and only the last carries the
 Household and those verbs, so nothing further in is handed a Household that is

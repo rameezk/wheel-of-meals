@@ -23,29 +23,24 @@ const addMeal = async (slug: string, meal: unknown) => {
   return { response, body: await response.json<Body>() };
 };
 
-const editMeal = async (slug: string, id: string, changes: unknown) => {
+const saveMeal = async (slug: string, id: string, draft: unknown) => {
   const response = await SELF.fetch(
     `${origin}/api/households/${slug}/meals/${id}`,
     {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(changes),
+      body: JSON.stringify(draft),
     },
   );
   return { response, body: await response.json<Body>() };
 };
 
-const setRecipe = async (slug: string, id: string, recipe: unknown) => {
-  const response = await SELF.fetch(
-    `${origin}/api/households/${slug}/meals/${id}/recipe`,
-    {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(recipe),
-    },
-  );
-  return { response, body: await response.json<Body>() };
-};
+const saveRecipe = (slug: string, meal: Body, recipe: Body) =>
+  saveMeal(slug, String(meal.id), {
+    name: meal.name,
+    description: meal.description,
+    ...recipe,
+  });
 
 const deleteMeal = (slug: string, id: string) =>
   SELF.fetch(`${origin}/api/households/${slug}/meals/${id}`, {
@@ -116,12 +111,12 @@ describe("adding a Meal", () => {
   });
 });
 
-describe("editing a Meal", () => {
+describe("saving a Meal", () => {
   it("renames it and describes it in place", async () => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, { name: "Buter chicken" });
 
-    const { response, body } = await editMeal(slug, String(meal.id), {
+    const { response, body } = await saveMeal(slug, String(meal.id), {
       name: "Butter chicken",
       description: "The one with the coconut milk",
     });
@@ -136,21 +131,22 @@ describe("editing a Meal", () => {
     await expect(mealBank(slug)).resolves.toEqual([body]);
   });
 
-  it("leaves the description alone when only the name changes", async () => {
+  it("clears a field left out of the save rather than leaving it alone", async () => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, {
       name: "Lasagne",
       description: "Sunday one",
     });
-
-    const { body } = await editMeal(slug, String(meal.id), { name: "Lasagna" });
-
-    expect(body).toEqual({
-      id: meal.id,
-      name: "Lasagna",
+    await saveMeal(slug, String(meal.id), {
+      name: "Lasagne",
       description: "Sunday one",
-      recipe: null,
+      source: "https://recipes.example.com/one",
     });
+
+    const { body } = await saveMeal(slug, String(meal.id), { name: "Lasagne" });
+
+    expect(body.description).toBeNull();
+    expect(body.recipe).toBeNull();
   });
 
   it("clears the description when it is emptied", async () => {
@@ -160,7 +156,8 @@ describe("editing a Meal", () => {
       description: "Sunday one",
     });
 
-    const { body } = await editMeal(slug, String(meal.id), {
+    const { body } = await saveMeal(slug, String(meal.id), {
+      name: "Lasagne",
       description: "",
     });
 
@@ -172,7 +169,7 @@ describe("editing a Meal", () => {
     await addMeal(slug, { name: "Butter chicken" });
     const { body: meal } = await addMeal(slug, { name: "Lasagne" });
 
-    const { response, body } = await editMeal(slug, String(meal.id), {
+    const { response, body } = await saveMeal(slug, String(meal.id), {
       name: "butter chicken",
     });
 
@@ -184,7 +181,7 @@ describe("editing a Meal", () => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, { name: "Butter chicken" });
 
-    const { response } = await editMeal(slug, String(meal.id), {
+    const { response } = await saveMeal(slug, String(meal.id), {
       name: "Butter Chicken",
       description: "Now described",
     });
@@ -192,23 +189,38 @@ describe("editing a Meal", () => {
     expect(response.status).toBe(200);
   });
 
-  it("holds an edit to the same caps as an add", async () => {
+  it("holds a save to the same caps as an add", async () => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, { name: "Lasagne" });
 
-    const { response, body } = await editMeal(slug, String(meal.id), {
+    const { response, body } = await saveMeal(slug, String(meal.id), {
       name: "a".repeat(101),
     });
 
     expect(response.status).toBe(400);
+    expect(body.error).toBe("invalid_meal");
     expect(String(body.message)).toMatch(/100 characters/);
+  });
+
+  it("refuses a save with no name at all", async () => {
+    const slug = await aHousehold();
+    const { body: meal } = await addMeal(slug, { name: "Lasagne" });
+
+    const { response, body } = await saveMeal(slug, String(meal.id), {
+      name: "   ",
+      description: "No name given",
+    });
+
+    expect(response.status).toBe(400);
+    expect(body.error).toBe("invalid_meal");
+    expect(String(body.message)).toMatch(/needs a name/i);
   });
 
   it("answers a Meal from another Household with a 404", async () => {
     const [mine, theirs] = [await aHousehold(), await aHousehold()];
     const { body: meal } = await addMeal(theirs, { name: "Lasagne" });
 
-    const { response, body } = await editMeal(mine, String(meal.id), {
+    const { response, body } = await saveMeal(mine, String(meal.id), {
       name: "Not mine",
     });
 
@@ -224,7 +236,7 @@ const aRecipe = (parts: Partial<Recipe>): Recipe => ({
   ...parts,
 });
 
-describe("setting a Meal's Recipe", () => {
+describe("saving a Meal's Recipe", () => {
   const aRecipeFor = async (source: string) => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, {
@@ -234,7 +246,8 @@ describe("setting a Meal's Recipe", () => {
     return {
       slug,
       id: String(meal.id),
-      ...(await setRecipe(slug, String(meal.id), { source })),
+      meal,
+      ...(await saveRecipe(slug, meal, { source })),
     };
   };
 
@@ -248,7 +261,7 @@ describe("setting a Meal's Recipe", () => {
     await expect(mealBank(slug)).resolves.toEqual([body]);
   });
 
-  it("writes neither the Meal's name nor its description", async () => {
+  it("keeps the Meal's name and description that the save carries", async () => {
     const { body } = await aRecipeFor("https://recipes.example.com/one");
 
     expect(body.name).toBe("Butter chicken");
@@ -328,9 +341,9 @@ describe("setting a Meal's Recipe", () => {
   });
 
   it("removes the Recipe when the Source is emptied", async () => {
-    const { slug, id } = await aRecipeFor("https://recipes.example.com/one");
+    const { slug, meal } = await aRecipeFor("https://recipes.example.com/one");
 
-    const { response, body } = await setRecipe(slug, id, { source: "  " });
+    const { response, body } = await saveRecipe(slug, meal, { source: "  " });
 
     expect(response.status).toBe(200);
     expect(body.recipe).toBeNull();
@@ -339,19 +352,23 @@ describe("setting a Meal's Recipe", () => {
 
   it("leaves the same Recipe behind when it is written twice", async () => {
     const source = "https://recipes.example.com/one";
-    const { slug, id } = await aRecipeFor(source);
+    const { slug, meal } = await aRecipeFor(source);
 
-    const { body } = await setRecipe(slug, id, { source });
+    const { body } = await saveRecipe(slug, meal, { source });
 
     expect(body.recipe).toEqual(aRecipe({ source }));
     await expect(mealBank(slug)).resolves.toEqual([body]);
   });
 
-  it("keeps the Recipe when the Meal is renamed", async () => {
+  it("keeps the Recipe when the whole Meal is saved with a new name", async () => {
     const source = "https://recipes.example.com/one";
-    const { slug, id } = await aRecipeFor(source);
+    const { slug, meal } = await aRecipeFor(source);
 
-    const { body } = await editMeal(slug, id, { name: "Butter Chicken" });
+    const { body } = await saveMeal(slug, String(meal.id), {
+      name: "Butter Chicken",
+      description: meal.description,
+      source,
+    });
 
     expect(body).toMatchObject({
       name: "Butter Chicken",
@@ -369,10 +386,10 @@ describe("setting a Meal's Recipe", () => {
   });
 
   it("answers an unknown Slug with the same 404 as the other Meal routes", async () => {
-    const { response, body } = await setRecipe(
+    const { response, body } = await saveMeal(
       "banana-apple-delicious-sauce",
       "not-a-meal",
-      { source: "https://recipes.example.com/one" },
+      { name: "Butter chicken", source: "https://recipes.example.com/one" },
     );
 
     expect(response.status).toBe(404);
@@ -383,7 +400,8 @@ describe("setting a Meal's Recipe", () => {
     const [mine, theirs] = [await aHousehold(), await aHousehold()];
     const { body: meal } = await addMeal(theirs, { name: "Lasagne" });
 
-    const { response, body } = await setRecipe(mine, String(meal.id), {
+    const { response, body } = await saveMeal(mine, String(meal.id), {
+      name: "Lasagne",
       source: "https://recipes.example.com/one",
     });
 
@@ -393,13 +411,14 @@ describe("setting a Meal's Recipe", () => {
 });
 
 describe("a Recipe's Ingredients and Method", () => {
-  const written = async (recipe: unknown) => {
+  const written = async (recipe: Body) => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, { name: "Butter chicken" });
     return {
       slug,
       id: String(meal.id),
-      ...(await setRecipe(slug, String(meal.id), recipe)),
+      meal,
+      ...(await saveRecipe(slug, meal, recipe)),
     };
   };
 
@@ -451,9 +470,9 @@ describe("a Recipe's Ingredients and Method", () => {
   });
 
   it("removes the Recipe when all three parts are emptied", async () => {
-    const { slug, id } = await written({ ingredients, method });
+    const { slug, meal } = await written({ ingredients, method });
 
-    const { response, body } = await setRecipe(slug, id, {
+    const { response, body } = await saveRecipe(slug, meal, {
       source: "",
       ingredients: "",
       method: "  \n ",
@@ -484,23 +503,27 @@ describe("a Recipe's Ingredients and Method", () => {
     expect(String(overIt.body.message)).toMatch(/2000 characters/);
   });
 
-  it("writes neither the Meal's name nor its description", async () => {
+  it("keeps the Meal's name and description that the save carries", async () => {
     const slug = await aHousehold();
     const { body: meal } = await addMeal(slug, {
       name: "Butter chicken",
       description: "The one with the coconut milk",
     });
 
-    const { body } = await setRecipe(slug, String(meal.id), { method });
+    const { body } = await saveRecipe(slug, meal, { method });
 
     expect(body.name).toBe("Butter chicken");
     expect(body.description).toBe("The one with the coconut milk");
   });
 
-  it("keeps the parts when the Meal is renamed", async () => {
-    const { slug, id } = await written({ ingredients, method });
+  it("keeps the parts when the whole Meal is saved with a new name", async () => {
+    const { slug, meal } = await written({ ingredients, method });
 
-    const { body } = await editMeal(slug, id, { name: "Butter Chicken" });
+    const { body } = await saveMeal(slug, String(meal.id), {
+      name: "Butter Chicken",
+      ingredients,
+      method,
+    });
 
     expect(body.recipe).toEqual(aRecipe({ ingredients, method }));
   });

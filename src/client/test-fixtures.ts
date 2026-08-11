@@ -49,8 +49,7 @@ export const anOpenHousehold = (
   show: () => {},
   update: () => Promise.resolve(null),
   addMeal: () => Promise.resolve(null),
-  editMeal: () => Promise.resolve(null),
-  setRecipe: () => Promise.resolve(null),
+  saveMeal: () => Promise.resolve(null),
   removeMeal: () => Promise.resolve(null),
   ...parts,
 });

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import { dayLabels } from "./days";
+import { wholeMeal } from "./meals";
 import { flipStaggerMillis, wheelSpinMillis } from "./motion";
 import type { OpenHousehold } from "./open-household";
 import type { Recipe } from "../shared/recipe";
@@ -916,12 +917,12 @@ describe("a Meal's Recipe", () => {
   });
 
   it("writes an edited Recipe back through the Household", async () => {
-    const setRecipe = vi.fn(() => Promise.resolve(cookedBank[0]!));
+    const saveMeal = vi.fn(() => Promise.resolve(cookedBank[0]!));
     render(
       <AWeek
         cookingDays={cookingDays}
         mealBank={cookedBank}
-        parts={{ setRecipe }}
+        parts={{ saveMeal }}
       />,
     );
 
@@ -930,21 +931,20 @@ describe("a Meal's Recipe", () => {
     fireEvent.change(methodField(), { target: { value: "Fry it longer" } });
     await saveIt();
 
-    expect(setRecipe).toHaveBeenCalledWith("meal-Butter chicken", {
-      source: "",
-      ingredients: "",
+    expect(saveMeal).toHaveBeenCalledWith("meal-Butter chicken", {
+      ...wholeMeal(cookedBank[0]!),
       method: "Fry it longer",
     });
     expect(theSheet()).toBeNull();
   });
 
   it("leaves the Week it drew alone when a Recipe is saved", async () => {
-    const setRecipe = vi.fn(() => Promise.resolve(cookedBank[0]!));
+    const saveMeal = vi.fn(() => Promise.resolve(cookedBank[0]!));
     render(
       <AWeek
         cookingDays={cookingDays}
         mealBank={cookedBank}
-        parts={{ setRecipe }}
+        parts={{ saveMeal }}
       />,
     );
 

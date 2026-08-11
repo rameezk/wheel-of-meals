@@ -5,6 +5,7 @@ import { duplicateMeal, mealBankFull } from "../shared/api";
 import type { Meal } from "../shared/meal";
 import { HouseholdPage } from "./HouseholdPage";
 import { householdsInMemory } from "./households-in-memory";
+import { wholeMeal } from "./meals";
 import { landedHighlightMillis } from "./motion";
 import { hasARecipe } from "./MealRow";
 import { methodTooLong } from "../shared/recipe";
@@ -76,8 +77,6 @@ const sourceField = () => screen.getByLabelText(/source/i);
 const ingredientsField = () => screen.getByLabelText(/ingredients/i);
 
 const methodField = () => screen.getByLabelText(/method/i);
-
-const nothingTyped = { source: "", ingredients: "", method: "" };
 
 const theSheet = (meal: Meal) =>
   screen.queryByRole("dialog", {
@@ -194,7 +193,7 @@ describe("the Meal Bank", () => {
 
   it("edits a Meal in place", async () => {
     const households = await showBank([aMeal]);
-    const editing = vi.spyOn(households, "editMeal");
+    const editing = vi.spyOn(households, "saveMeal");
 
     await press(`Edit ${aMeal.name}`);
     const name = screen.getByLabelText(/^name$/i);
@@ -206,14 +205,14 @@ describe("the Meal Bank", () => {
     expect(screen.getByText(String(aMeal.description))).toBeInTheDocument();
     expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
     expect(editing).toHaveBeenCalledWith(aSlug, aMeal.id, {
+      ...wholeMeal(aMeal),
       name: "Butter Chicken",
-      description: aMeal.description,
     });
   });
 
   it("leaves the Meal as it was when an edit is abandoned", async () => {
     const households = await showBank([aMeal]);
-    const editing = vi.spyOn(households, "editMeal");
+    const editing = vi.spyOn(households, "saveMeal");
 
     await press(`Edit ${aMeal.name}`);
     const name = screen.getByLabelText(/^name$/i);
@@ -564,14 +563,14 @@ describe("a Meal's Recipe", () => {
 
   it("keeps a Source and marks the row it came from", async () => {
     const households = await showBank([aMeal]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(aMeal);
     await userEvent.type(sourceField(), aSource);
     await press("Save");
 
     expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, {
-      ...nothingTyped,
+      ...wholeMeal(aMeal),
       source: aSource,
     });
     await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
@@ -591,7 +590,7 @@ describe("a Meal's Recipe", () => {
 
   it("changes nothing when the sheet is cancelled", async () => {
     const households = await showBank([aMealWithARecipe]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
@@ -621,7 +620,7 @@ describe("a Meal's Recipe", () => {
 
   it("keeps the Recipe and what was typed when the emptying is declined", async () => {
     const households = await showBank([aMealWithARecipe]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
@@ -638,18 +637,18 @@ describe("a Meal's Recipe", () => {
 
   it("saves an already-empty Recipe without asking, as there is nothing to lose", async () => {
     const households = await showBank([aMeal]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(aMeal);
     await press("Save");
 
-    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, nothingTyped);
+    expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, wholeMeal(aMeal));
     await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
   });
 
   it("keeps Ingredients and a Method on their own, line for line", async () => {
     const households = await showBank([aMeal]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
     const ingredients = "1 onion, chopped\n2 tbsp butter";
     const method = "Fry the paste.\n\nSimmer for an hour.";
 
@@ -659,7 +658,7 @@ describe("a Meal's Recipe", () => {
     await press("Save");
 
     expect(setting).toHaveBeenCalledWith(aSlug, aMeal.id, {
-      source: "",
+      ...wholeMeal(aMeal),
       ingredients,
       method,
     });
@@ -670,7 +669,7 @@ describe("a Meal's Recipe", () => {
 
   it("holds the question open when Enter is pressed instead of the answer", async () => {
     const households = await showBank([aMealWithARecipe]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
@@ -769,7 +768,7 @@ describe("a Meal's Recipe", () => {
 
   it("closes on Escape without writing anything", async () => {
     const households = await showBank([aMeal]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(aMeal);
     await userEvent.keyboard("{Escape}");
@@ -878,7 +877,7 @@ describe("sharing a Recipe", () => {
     dismissal.name = "AbortError";
     share.mockRejectedValue(dismissal);
     const households = await showBank([written]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
 
     await openRecipe(written);
     await press("Share the Recipe");

@@ -129,36 +129,23 @@ export const householdsInMemory = (
         return meal;
       }),
 
-    editMeal: (slug, id, draft) =>
-      change(() => {
-        const household = householdAt(slug);
-        const edited: Meal = {
-          ...mealOf(household, id),
-          name: collapseWhitespace(draft.name),
-          description: described(draft),
-        };
-        restock(
-          household,
-          household.mealBank.map((meal) => (meal.id === id ? edited : meal)),
-        );
-        return edited;
-      }),
-
-    setRecipe: (slug, id, draft) =>
+    saveMeal: (slug, id, draft) =>
       change(() => {
         const household = householdAt(slug);
         const read = readRecipe(draft);
         if ("refusal" in read) throw new Refusal(read.refusal);
 
-        const written: Meal = {
+        const saved: Meal = {
           ...mealOf(household, id),
+          name: collapseWhitespace(draft.name),
+          description: described(draft),
           recipe: read.recipe,
         };
         restock(
           household,
-          household.mealBank.map((meal) => (meal.id === id ? written : meal)),
+          household.mealBank.map((meal) => (meal.id === id ? saved : meal)),
         );
-        return written;
+        return saved;
       }),
 
     removeMeal: (slug, id) =>

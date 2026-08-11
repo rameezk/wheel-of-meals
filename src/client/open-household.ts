@@ -6,7 +6,7 @@ import {
   messageFor,
   type Households,
   type MealDraft,
-  type RecipeDraft,
+  type WholeMeal,
 } from "./households";
 import { forget, remember } from "./remembered";
 
@@ -33,8 +33,7 @@ export type OpenHousehold = {
   show: (household: Household) => void;
   update: (changes: UpdateHousehold) => Promise<Household | null>;
   addMeal: (draft: MealDraft) => Promise<Meal | null>;
-  editMeal: (id: string, draft: MealDraft) => Promise<Meal | null>;
-  setRecipe: (id: string, draft: RecipeDraft) => Promise<Meal | null>;
+  saveMeal: (id: string, draft: WholeMeal) => Promise<Meal | null>;
   removeMeal: (id: string) => Promise<Meal | null>;
 };
 
@@ -131,11 +130,8 @@ export const useOpenHousehold = (
         (held, added) => ({ ...held, mealBank: [...held.mealBank, added] }),
       ),
 
-    editMeal: (id, draft) =>
-      attempt(() => households.editMeal(slug, id, draft), inPlace),
-
-    setRecipe: (id, draft) =>
-      attempt(() => households.setRecipe(slug, id, draft), inPlace),
+    saveMeal: (id, draft) =>
+      attempt(() => households.saveMeal(slug, id, draft), inPlace),
 
     removeMeal: async (id) => {
       const going = household.mealBank.find((meal) => meal.id === id);

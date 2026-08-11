@@ -4,6 +4,7 @@ import type { Meal } from "../shared/meal";
 import { respin, spareMeals, spin, type Week } from "../shared/week";
 import { dayLabels } from "./days";
 import type { RecipeDraft } from "./households";
+import { wholeMeal } from "./meals";
 import { flipStaggerMillis } from "./motion";
 import type { OpenHousehold } from "./open-household";
 import { RecipeSheet } from "./RecipeSheet";
@@ -136,7 +137,8 @@ export const TheWeek = ({
   };
 
   const saveTheRecipe = async (meal: Meal, draft: RecipeDraft) => {
-    if (await openHousehold.setRecipe(meal.id, draft)) setReadingRecipeOf(null);
+    if (await openHousehold.saveMeal(meal.id, { ...wholeMeal(meal), ...draft }))
+      setReadingRecipeOf(null);
   };
 
   const flips = spun > 0;

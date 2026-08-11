@@ -6,6 +6,7 @@ import type { Meal } from "../shared/meal";
 import type { Slug } from "../shared/slug";
 import type { Households } from "./households";
 import { householdsInMemory } from "./households-in-memory";
+import { wholeMeal } from "./meals";
 import {
   useOpenHousehold,
   type OpenHousehold,
@@ -172,23 +173,28 @@ describe("changing an Open Household", () => {
     expect(open().household.mealBank).toEqual([aMeal, added]);
   });
 
-  it("replaces an edited Meal where it stands", async () => {
+  it("replaces a saved Meal where it stands", async () => {
     const { open } = await opened(householdsInMemory(aStockedHousehold));
 
-    const edited = await act(() =>
-      open().editMeal(aMeal.id, { name: "Lasagne", description: "" }),
+    const saved = await act(() =>
+      open().saveMeal(aMeal.id, {
+        ...wholeMeal(aMeal),
+        name: "Lasagne",
+        description: "",
+      }),
     );
 
-    expect(open().household.mealBank).toEqual([edited]);
+    expect(open().household.mealBank).toEqual([saved]);
   });
 
-  it("patches the Meal a Recipe was written to, leaving the rest of it alone", async () => {
+  it("patches the whole Meal that was saved, without re-opening the Household", async () => {
     const households = householdsInMemory(aStockedHousehold);
     const { open } = await opened(households);
     const reopen = vi.spyOn(households, "open");
 
     const written = await act(() =>
-      open().setRecipe(aMeal.id, {
+      open().saveMeal(aMeal.id, {
+        ...wholeMeal(aMeal),
         source: aSource,
         ingredients: "1 onion\n2 tbsp butter",
         method: "Fry the paste.",
@@ -207,7 +213,7 @@ describe("changing an Open Household", () => {
     expect(reopen).not.toHaveBeenCalled();
   });
 
-  it("takes the Recipe off the Meal when an empty one is written", async () => {
+  it("takes the Recipe off the Meal when an empty one is saved", async () => {
     const { open } = await opened(
       householdsInMemory({
         ...aStockedHousehold,
@@ -216,7 +222,7 @@ describe("changing an Open Household", () => {
     );
 
     const written = await act(() =>
-      open().setRecipe(aMeal.id, { source: "", ingredients: "", method: "" }),
+      open().saveMeal(aMeal.id, wholeMeal(aMeal)),
     );
 
     expect(written).toEqual(aMeal);

@@ -1,7 +1,15 @@
 import type { Meal } from "../shared/meal";
-import type { MealDraft } from "./households";
+import type { MealDraft, WholeMeal } from "./households";
 
 export const named = (draft: MealDraft) => draft.name.trim().length > 0;
+
+export const wholeMeal = (meal: Meal): WholeMeal => ({
+  name: meal.name,
+  description: meal.description ?? "",
+  source: meal.recipe?.source ?? "",
+  ingredients: meal.recipe?.ingredients ?? "",
+  method: meal.recipe?.method ?? "",
+});
 
 export const mealsHeld = (held: number) =>
   `${held} ${held === 1 ? "Meal" : "Meals"}`;
