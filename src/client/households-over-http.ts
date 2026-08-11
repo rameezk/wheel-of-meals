@@ -58,18 +58,9 @@ export const householdsOverHttp: Households = {
       mealSchema,
     ),
 
-  editMeal: async (slug, id, draft) =>
+  saveMeal: async (slug, id, draft) =>
     read(
       await fetch(`${collection}/${slug}/meals/${id}`, sending("PATCH", draft)),
-      mealSchema,
-    ),
-
-  setRecipe: async (slug, id, draft) =>
-    read(
-      await fetch(
-        `${collection}/${slug}/meals/${id}/recipe`,
-        sending("PUT", draft),
-      ),
       mealSchema,
     ),
 

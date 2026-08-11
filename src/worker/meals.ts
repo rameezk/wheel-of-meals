@@ -9,11 +9,11 @@ import {
 } from "../shared/api";
 import {
   addMealSchema,
-  editMealSchema,
   mealBankMaxSize,
   mealSchema,
-  type EditMeal,
+  saveMealSchema,
   type Meal,
+  type SaveMeal,
 } from "../shared/meal";
 import { recipeOf, setRecipeSchema, type SetRecipe } from "../shared/recipe";
 import { slugSchema, type Slug } from "../shared/slug";
@@ -82,50 +82,31 @@ const insertMeal = (
     )
     .first();
 
-const updateMeal = (
+const saveMeal = (
   db: D1Database,
   slug: Slug,
   id: string,
-  changes: EditMeal,
+  meal: SaveMeal & { recipe: SetRecipe },
 ) =>
   db
     .prepare(
       `UPDATE meals
-       SET name = COALESCE(?3, name),
-           description = CASE WHEN ?4 THEN ?5 ELSE description END
+       SET name = ?3,
+           description = ?4,
+           source = ?5,
+           ingredients = ?6,
+           method = ?7
        WHERE id = ?1 AND household_slug = ?2
        RETURNING ${mealColumns}`,
     )
     .bind(
       id,
       slug,
-      changes.name ?? null,
-      changes.description === undefined ? 0 : 1,
-      changes.description ?? null,
-    )
-    .first();
-
-const writeRecipe = (
-  db: D1Database,
-  slug: Slug,
-  id: string,
-  recipe: SetRecipe,
-) =>
-  db
-    .prepare(
-      `UPDATE meals
-       SET source = ?3,
-           ingredients = ?4,
-           method = ?5
-       WHERE id = ?1 AND household_slug = ?2
-       RETURNING ${mealColumns}`,
-    )
-    .bind(
-      id,
-      slug,
-      recipe?.source ?? null,
-      recipe?.ingredients ?? null,
-      recipe?.method ?? null,
+      meal.name,
+      meal.description,
+      meal.recipe?.source ?? null,
+      meal.recipe?.ingredients ?? null,
+      meal.recipe?.method ?? null,
     )
     .first();
 
@@ -174,42 +155,27 @@ meals.patch("/api/households/:slug/meals/:id", async (c) => {
   const slug = slugSchema.safeParse(c.req.param("slug"));
   if (!slug.success) return c.json(notFound, 404);
 
-  const changes = editMealSchema.safeParse(await readBody(c.req.raw));
-  if (!changes.success)
-    return c.json(invalidMeal(firstIssue(changes.error, mealFallback)), 400);
+  const body = await readBody(c.req.raw);
+
+  const meal = saveMealSchema.safeParse(body);
+  if (!meal.success)
+    return c.json(invalidMeal(firstIssue(meal.error, mealFallback)), 400);
+
+  const recipe = setRecipeSchema.safeParse(body);
+  if (!recipe.success)
+    return c.json(invalidRecipe(firstIssue(recipe.error, recipeFallback)), 400);
 
   try {
-    const row = await updateMeal(
-      c.env.DB,
-      slug.data,
-      c.req.param("id"),
-      changes.data,
-    );
+    const row = await saveMeal(c.env.DB, slug.data, c.req.param("id"), {
+      ...meal.data,
+      recipe: recipe.data,
+    });
     if (!row) return c.json(notFound, 404);
     return c.json(toMeal(row));
   } catch (error) {
     if (isDuplicateName(error)) return c.json(duplicateMeal, 409);
     throw error;
   }
-});
-
-meals.put("/api/households/:slug/meals/:id/recipe", async (c) => {
-  const slug = slugSchema.safeParse(c.req.param("slug"));
-  if (!slug.success) return c.json(notFound, 404);
-
-  const recipe = setRecipeSchema.safeParse(await readBody(c.req.raw));
-  if (!recipe.success)
-    return c.json(invalidRecipe(firstIssue(recipe.error, recipeFallback)), 400);
-
-  const row = await writeRecipe(
-    c.env.DB,
-    slug.data,
-    c.req.param("id"),
-    recipe.data,
-  );
-  if (!row) return c.json(notFound, 404);
-
-  return c.json(toMeal(row));
 });
 
 meals.delete("/api/households/:slug/meals/:id", async (c) => {

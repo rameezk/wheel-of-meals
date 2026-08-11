@@ -8,6 +8,8 @@ export type MealDraft = { name: string; description: string };
 
 export type RecipeDraft = TypedRecipe;
 
+export type WholeMeal = MealDraft & RecipeDraft;
+
 export class Refusal extends Error {}
 
 export const messageFor = (error: unknown) =>
@@ -18,7 +20,6 @@ export type Households = {
   open: (slug: Slug, signal?: AbortSignal) => Promise<Household | null>;
   update: (slug: Slug, changes: UpdateHousehold) => Promise<Household>;
   addMeal: (slug: Slug, draft: MealDraft) => Promise<Meal>;
-  editMeal: (slug: Slug, id: string, draft: MealDraft) => Promise<Meal>;
-  setRecipe: (slug: Slug, id: string, draft: RecipeDraft) => Promise<Meal>;
+  saveMeal: (slug: Slug, id: string, draft: WholeMeal) => Promise<Meal>;
   removeMeal: (slug: Slug, id: string) => Promise<void>;
 };

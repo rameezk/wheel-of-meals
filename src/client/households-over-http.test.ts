@@ -26,7 +26,9 @@ const sent = () => {
 
 const aDraft = { name: "Butter chicken", description: "With coconut milk" };
 
-const aRecipeDraft = {
+const aWholeMeal = {
+  name: "Butter chicken",
+  description: "With coconut milk",
   source: aSource,
   ingredients: "1 onion\n2 tbsp butter",
   method: "Fry the paste.\n\nSimmer it.",
@@ -91,39 +93,24 @@ describe("Households over HTTP", () => {
     expect(sent().body).toEqual(aDraft);
   });
 
-  it("edits a Meal in place", async () => {
-    answerWith(aMeal);
-
-    await expect(
-      householdsOverHttp.editMeal(aSlug, aMeal.id, aDraft),
-    ).resolves.toEqual(aMeal);
-    expect(sent().url).toBe(`/api/households/${aSlug}/meals/${aMeal.id}`);
-    expect(sent().method).toBe("PATCH");
-    expect(sent().body).toEqual(aDraft);
-  });
-
-  it("sets a Meal's Recipe on its own sub-resource", async () => {
+  it("saves a whole Meal in place", async () => {
     answerWith(aMealWithARecipe);
 
     await expect(
-      householdsOverHttp.setRecipe(aSlug, aMealWithARecipe.id, aRecipeDraft),
+      householdsOverHttp.saveMeal(aSlug, aMealWithARecipe.id, aWholeMeal),
     ).resolves.toEqual(aMealWithARecipe);
     expect(sent().url).toBe(
-      `/api/households/${aSlug}/meals/${aMealWithARecipe.id}/recipe`,
+      `/api/households/${aSlug}/meals/${aMealWithARecipe.id}`,
     );
-    expect(sent().method).toBe("PUT");
+    expect(sent().method).toBe("PATCH");
   });
 
-  it("sends nothing but the Recipe, so a save cannot rename the Meal", async () => {
+  it("sends all five fields, so a save carries the whole Meal", async () => {
     answerWith(aMealWithARecipe);
 
-    await householdsOverHttp.setRecipe(
-      aSlug,
-      aMealWithARecipe.id,
-      aRecipeDraft,
-    );
+    await householdsOverHttp.saveMeal(aSlug, aMealWithARecipe.id, aWholeMeal);
 
-    expect(sent().body).toEqual(aRecipeDraft);
+    expect(sent().body).toEqual(aWholeMeal);
   });
 
   it("removes a Meal from the Meal Bank", async () => {

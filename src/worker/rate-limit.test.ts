@@ -83,15 +83,15 @@ describe("rate limiting Meal Bank writes", () => {
   });
 });
 
-describe("saving a Recipe", () => {
+describe("saving a Meal whole", () => {
   it("is counted against the same writes as the rest of the Meal Bank", async () => {
     const slug = await createdSlug("203.0.113.10");
 
     const responses = await withinOneWindow(() =>
       times(pastWrites, (n) =>
         request(
-          `/api/households/${slug}/meals/meal-${n}/recipe`,
-          "PUT",
+          `/api/households/${slug}/meals/meal-${n}`,
+          "PATCH",
           "203.0.113.10",
         ),
       ),

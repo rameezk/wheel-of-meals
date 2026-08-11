@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import type { Meal } from "../shared/meal";
-import { named, narrowedTo, shownBy } from "./meals";
+import { named, narrowedTo, shownBy, wholeMeal } from "./meals";
 import { landedHighlightMillis } from "./motion";
 import type { MealDraft, RecipeDraft } from "./households";
 import type { OpenHousehold } from "./open-household";
@@ -62,11 +62,15 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
   };
 
   const save = async (meal: Meal, draft: MealDraft) => {
-    if (await openHousehold.editMeal(meal.id, draft)) setOpened(null);
+    if (await openHousehold.saveMeal(meal.id, { ...wholeMeal(meal), ...draft }))
+      setOpened(null);
   };
 
   const saveRecipe = async (meal: Meal, draft: RecipeDraft) => {
-    if (!(await openHousehold.setRecipe(meal.id, draft))) return;
+    if (
+      !(await openHousehold.saveMeal(meal.id, { ...wholeMeal(meal), ...draft }))
+    )
+      return;
 
     forgetDraft(meal.id);
     setOpened(null);

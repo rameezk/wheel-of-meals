@@ -137,7 +137,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
 
   it("closes and writes nothing once the discard is confirmed", async () => {
     const households = aBankOf([aMeal]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
     await showBank(households);
 
     await openRecipe(aMeal);
@@ -330,7 +330,7 @@ describe("a Recipe the device held on to", () => {
 
   it("stays on the device, telling the Worker nothing", async () => {
     const households = aBankOf([aMeal]);
-    const setting = vi.spyOn(households, "setRecipe");
+    const setting = vi.spyOn(households, "saveMeal");
     const shown = await showBank(households);
 
     await openRecipe(aMeal);
