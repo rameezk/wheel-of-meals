@@ -6,6 +6,7 @@ import { FirstRun } from "./FirstRun";
 import { firstRunSkipped, skipFirstRun } from "./guiding";
 import type { Households } from "./households";
 import { HouseholdSettings } from "./HouseholdSettings";
+import { SettingsIcon } from "./Icons";
 import { MealBank } from "./MealBank";
 import { whatTheBankHolds } from "./meals";
 import { useOpenHousehold } from "./open-household";
@@ -149,8 +150,9 @@ export const HouseholdPage = ({
                 <button
                   type="button"
                   onClick={() => onGo(`/${household.slug}/settings`)}
-                  className={quietButtonStyle}
+                  className={`${quietButtonStyle} gap-2`}
                 >
+                  <SettingsIcon />
                   Settings
                 </button>
               </div>

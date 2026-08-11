@@ -53,6 +53,14 @@ describe("a share control", () => {
     expect(confirmation()).toBe("");
   });
 
+  it("wears the share Icon beside its label, not instead of it", () => {
+    showTheControl();
+
+    const icon = theControl().querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(theControl()).toHaveAccessibleName("Share the Week");
+  });
+
   it("confirms that the share sheet took it", async () => {
     showTheControl();
 

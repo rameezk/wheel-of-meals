@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ShareIcon } from "./Icons";
 import { shareConfirmMillis } from "./motion";
 import { shareOrCopy, type Shareable, type Sharing } from "./sharing";
 import { quietButtonStyle } from "./styles";
@@ -43,8 +44,9 @@ export const ShareButton = ({ label, shareable }: ShareButtonProps) => {
         type="button"
         onClick={() => void share()}
         disabled={sharing}
-        className={`${quietButtonStyle} disabled:opacity-50`}
+        className={`${quietButtonStyle} gap-2 disabled:opacity-50`}
       >
+        <ShareIcon />
         {label}
       </button>
 

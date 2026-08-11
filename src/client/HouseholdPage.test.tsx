@@ -303,6 +303,17 @@ describe("a Household page", () => {
     expect(screen.getByText(/shared/i)).toBeInTheDocument();
   });
 
+  it("wears the settings Icon beside its label, not instead of it", async () => {
+    render(thePage(householdsInMemory(aStockedHousehold)));
+
+    const settings = await screen.findByRole("button", { name: "Settings" });
+    expect(settings.querySelector("svg")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
+    expect(settings).toHaveAccessibleName("Settings");
+  });
+
   it("becomes the remembered Household once it opens", async () => {
     render(thePage(householdsInMemory({ ...aHousehold, name: "The Khans" })));
 
