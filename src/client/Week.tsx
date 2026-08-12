@@ -3,6 +3,7 @@ import { daysOfTheWeek, type CookingDay } from "../shared/household";
 import type { Meal } from "../shared/meal";
 import { respin, spareMeals, spin, type Week } from "../shared/week";
 import { dayLabels } from "./days";
+import { RespinIcon } from "./Icons";
 import type { RecipeDraft } from "./households";
 import { wholeMeal } from "./meals";
 import { flipStaggerMillis } from "./motion";
@@ -229,7 +230,7 @@ export const TheWeek = ({
                         <span className="sr-only">
                           Re-spin {dayLabels[day]}
                         </span>
-                        <span aria-hidden>↻</span>
+                        <RespinIcon />
                       </button>
                     )}
                   </span>
