@@ -808,7 +808,7 @@ describe("a Meal's Recipe", () => {
     spinIt();
     openTheRecipeOn("Sunday", "Butter chicken");
 
-    expect(theSheet()).toHaveAccessibleName("Recipe for Butter chicken");
+    expect(theSheet()).toHaveAccessibleName("Butter chicken");
     expect(methodField()).toHaveValue(fryThePaste);
   });
 

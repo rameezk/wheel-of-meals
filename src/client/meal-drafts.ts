@@ -1,12 +1,14 @@
 import { z } from "zod";
-import type { RecipeDraft } from "./households";
+import type { WholeMeal } from "./households";
 
-const key = "wheel-of-meals.recipe-drafts";
+const key = "wheel-of-meals.meal-drafts";
 
 const heldSchema = z
   .record(
     z.string(),
     z.object({
+      name: z.string(),
+      description: z.string(),
       source: z.string(),
       ingredients: z.string(),
       method: z.string(),
@@ -32,9 +34,9 @@ const write = (held: Held) => {
   }
 };
 
-export const heldDraft = (id: string): RecipeDraft | null => read()[id] ?? null;
+export const heldDraft = (id: string): WholeMeal | null => read()[id] ?? null;
 
-export const holdDraft = (id: string, draft: RecipeDraft) =>
+export const holdDraft = (id: string, draft: WholeMeal) =>
   write({ ...read(), [id]: draft });
 
 export const forgetDraft = (id: string) => {

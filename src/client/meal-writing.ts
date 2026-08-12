@@ -1,16 +1,17 @@
 import { useState } from "react";
 import type { Meal } from "../shared/meal";
-import type { RecipeDraft } from "./households";
-import { forgetDraft, heldDraft, holdDraft } from "./recipe-drafts";
+import type { WholeMeal } from "./households";
+import { forgetDraft, heldDraft, holdDraft } from "./meal-drafts";
+import { wholeMeal } from "./meals";
 
 type Question = "emptying" | "leaving";
 
-export type RecipeWriting = {
-  draft: RecipeDraft;
+export type MealWriting = {
+  draft: WholeMeal;
   restored: boolean;
   unsaved: boolean;
   asking: Question | null;
-  change: (part: Partial<RecipeDraft>) => void;
+  change: (part: Partial<WholeMeal>) => void;
   askToEmpty: () => void;
   askToLeave: () => void;
   keepWriting: () => void;
@@ -18,19 +19,15 @@ export type RecipeWriting = {
   leave: () => void;
 };
 
-const asTyped = (meal: Meal): RecipeDraft => ({
-  source: meal.recipe?.source ?? "",
-  ingredients: meal.recipe?.ingredients ?? "",
-  method: meal.recipe?.method ?? "",
-});
-
-const same = (one: RecipeDraft, other: RecipeDraft) =>
+const same = (one: WholeMeal, other: WholeMeal) =>
+  one.name === other.name &&
+  one.description === other.description &&
   one.source === other.source &&
   one.ingredients === other.ingredients &&
   one.method === other.method;
 
 const opened = (meal: Meal) => {
-  const saved = asTyped(meal);
+  const saved = wholeMeal(meal);
   const held = heldDraft(meal.id);
   if (!held) return { draft: saved, restored: false };
 
@@ -42,17 +39,17 @@ const opened = (meal: Meal) => {
   return { draft: held, restored: true };
 };
 
-export const useRecipeWriting = (
+export const useMealWriting = (
   meal: Meal,
   onClose: () => void,
-): RecipeWriting => {
+): MealWriting => {
   const [writing, setWriting] = useState(() => opened(meal));
   const [asking, setAsking] = useState<Question | null>(null);
 
-  const saved = asTyped(meal);
+  const saved = wholeMeal(meal);
   const unsaved = !same(writing.draft, saved);
 
-  const hold = (draft: RecipeDraft, restored: boolean) => {
+  const hold = (draft: WholeMeal, restored: boolean) => {
     const untouched = same(draft, saved);
     if (untouched) forgetDraft(meal.id);
     else holdDraft(meal.id, draft);

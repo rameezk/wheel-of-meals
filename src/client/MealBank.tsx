@@ -1,13 +1,13 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import type { Meal } from "../shared/meal";
-import { named, narrowedTo, shownBy, wholeMeal } from "./meals";
+import { named, narrowedTo, shownBy } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import type { MealDraft, RecipeDraft } from "./households";
+import type { MealDraft, WholeMeal } from "./households";
 import type { OpenHousehold } from "./open-household";
+import { forgetDraft } from "./meal-drafts";
 import { MealFields } from "./MealFields";
-import { MealRow, type RowOpenTo } from "./MealRow";
-import { forgetDraft } from "./recipe-drafts";
-import { RecipeSheet } from "./RecipeSheet";
+import { MealRow } from "./MealRow";
+import { MealSheet } from "./MealSheet";
 import {
   alertStyle,
   fieldStyle,
@@ -22,13 +22,10 @@ type MealBankProps = {
   onBack: () => void;
 };
 
-type Opened = { id: string; to: RowOpenTo | "recipe" };
+type Opened = { id: string; to: "sheet" | "confirming" };
 
 const byName = (one: Meal, other: Meal) =>
   one.name.localeCompare(other.name, undefined, { sensitivity: "base" });
-
-const inRow = (opened: Opened | null, meal: Meal): RowOpenTo | null =>
-  opened?.id === meal.id && opened.to !== "recipe" ? opened.to : null;
 
 const backButtonStyle =
   "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-stone-700 text-lg text-stone-300 transition hover:border-stone-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
@@ -61,16 +58,8 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
     if (!shownBy(added, filter)) setFilter("");
   };
 
-  const save = async (meal: Meal, draft: MealDraft) => {
-    if (await openHousehold.saveMeal(meal.id, { ...wholeMeal(meal), ...draft }))
-      setOpened(null);
-  };
-
-  const saveRecipe = async (meal: Meal, draft: RecipeDraft) => {
-    if (
-      !(await openHousehold.saveMeal(meal.id, { ...wholeMeal(meal), ...draft }))
-    )
-      return;
+  const saveMeal = async (meal: Meal, draft: WholeMeal) => {
+    if (!(await openHousehold.saveMeal(meal.id, draft))) return;
 
     forgetDraft(meal.id);
     setOpened(null);
@@ -93,8 +82,8 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
 
   const { shown, count } = narrowedTo(meals, filter);
   const landed = meals.find((meal) => meal.id === justLanded);
-  const readingRecipe =
-    opened?.to === "recipe"
+  const editing =
+    opened?.to === "sheet"
       ? (meals.find((meal) => meal.id === opened.id) ?? null)
       : null;
 
@@ -148,7 +137,7 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
         </button>
       </form>
 
-      {problem && !readingRecipe && (
+      {problem && !editing && (
         <p role="alert" className={alertStyle}>
           {problem}
         </p>
@@ -178,25 +167,25 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
             >
               <MealRow
                 meal={meal}
-                openTo={inRow(opened, meal)}
-                onOpenRecipe={() => open(meal, "recipe")}
-                onEdit={() => open(meal, "editing")}
-                onSave={(draft) => void save(meal, draft)}
+                confirming={
+                  opened?.id === meal.id && opened.to === "confirming"
+                }
+                onOpen={() => open(meal, "sheet")}
                 onAskToDelete={() => open(meal, "confirming")}
                 onDelete={() => void remove(meal)}
-                onClose={() => setOpened(null)}
+                onKeep={() => setOpened(null)}
               />
             </li>
           ))}
         </ul>
       )}
 
-      {readingRecipe && (
-        <RecipeSheet
-          meal={readingRecipe}
+      {editing && (
+        <MealSheet
+          meal={editing}
           working={working}
           problem={problem}
-          onSave={(draft) => void saveRecipe(readingRecipe, draft)}
+          onSave={(draft) => void saveMeal(editing, draft)}
           onClose={() => setOpened(null)}
         />
       )}

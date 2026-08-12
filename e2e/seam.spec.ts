@@ -78,7 +78,7 @@ test("a new Household is created, guided, spun, and comes back filled", async ({
   });
   await openTheRecipe.click();
 
-  const sheet = page.getByRole("dialog", { name: /Recipe for\s*Tacos/ });
+  const sheet = page.getByRole("dialog", { name: "Tacos" });
   await expect(sheet).toBeVisible();
 
   await page.goBack();
