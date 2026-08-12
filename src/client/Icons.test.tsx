@@ -1,10 +1,12 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { SettingsIcon, ShareIcon } from "./Icons";
+import { MethodIcon, SettingsIcon, ShareIcon, SourceIcon } from "./Icons";
 
 const drawings = [
   { name: "the share Icon", Icon: ShareIcon },
   { name: "the settings Icon", Icon: SettingsIcon },
+  { name: "the source Icon", Icon: SourceIcon },
+  { name: "the method Icon", Icon: MethodIcon },
 ];
 
 describe.each(drawings)("$name", ({ Icon }) => {
