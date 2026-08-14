@@ -7,7 +7,7 @@ import { HouseholdPage } from "./HouseholdPage";
 import { householdsInMemory } from "./households-in-memory";
 import { wholeMeal } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import { hasARecipe } from "./MealRow";
+import { hasAMethodRecipe, hasASourceRecipe } from "./MealRow";
 import { methodTooLong } from "../shared/recipe";
 import { removesTheRecipe } from "./Meal";
 import { landedRowStyle } from "./styles";
@@ -511,11 +511,12 @@ describe("a Meal's Recipe", () => {
   it("marks the rows that have one and leaves the rest unmarked", async () => {
     await showBank([aMeal, aMealWithARecipe]);
 
-    expect(rows()[0]).not.toHaveTextContent(hasARecipe);
-    expect(rows()[1]).toHaveTextContent(hasARecipe);
+    expect(rows()[0]).not.toHaveTextContent(hasASourceRecipe);
+    expect(rows()[0]).not.toHaveTextContent(hasAMethodRecipe);
+    expect(rows()[1]).toHaveTextContent(hasASourceRecipe);
     expect(
       screen.getByRole("button", {
-        name: new RegExp(`${aMealWithARecipe.name}.*${hasARecipe}`),
+        name: new RegExp(`${aMealWithARecipe.name}.*${hasASourceRecipe}`),
       }),
     ).toBeInTheDocument();
   });
@@ -560,7 +561,7 @@ describe("a Meal's Recipe", () => {
       source: aSource,
     });
     await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
-    expect(rows()[0]).toHaveTextContent(hasARecipe);
+    expect(rows()[0]).toHaveTextContent(hasASourceRecipe);
   });
 
   it("shows a kept Source as a link that opens in a new tab", async () => {
@@ -585,7 +586,7 @@ describe("a Meal's Recipe", () => {
 
     expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
     expect(setting).not.toHaveBeenCalled();
-    expect(rows()[0]).toHaveTextContent(hasARecipe);
+    expect(rows()[0]).toHaveTextContent(hasASourceRecipe);
   });
 
   it("takes the Recipe and its marker away once the emptying is confirmed", async () => {
@@ -601,7 +602,8 @@ describe("a Meal's Recipe", () => {
     await vi.waitFor(() =>
       expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument(),
     );
-    expect(rows()[0]).not.toHaveTextContent(hasARecipe);
+    expect(rows()[0]).not.toHaveTextContent(hasASourceRecipe);
+    expect(rows()[0]).not.toHaveTextContent(hasAMethodRecipe);
   });
 
   it("keeps the Recipe and what was typed when the emptying is declined", async () => {
@@ -618,7 +620,7 @@ describe("a Meal's Recipe", () => {
     expect(theSheet(aMealWithARecipe)).toBeInTheDocument();
     expect(sourceField()).toHaveValue("");
     expect(methodField()).toHaveValue("   ");
-    expect(rows()[0]).toHaveTextContent(hasARecipe);
+    expect(rows()[0]).toHaveTextContent(hasASourceRecipe);
   });
 
   it("saves an already-empty Recipe without asking, as there is nothing to lose", async () => {
@@ -649,8 +651,12 @@ describe("a Meal's Recipe", () => {
       method,
     });
     await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
-    expect(rows()[0]).toHaveTextContent(hasARecipe);
-    expect(rows()[0]).not.toHaveTextContent("↗");
+    expect(
+      screen.getByRole("button", {
+        name: new RegExp(`${aMeal.name}.*${hasAMethodRecipe}`),
+      }),
+    ).toBeInTheDocument();
+    expect(rows()[0]).not.toHaveTextContent(hasASourceRecipe);
   });
 
   it("holds the question open when Enter is pressed instead of the answer", async () => {
@@ -663,7 +669,7 @@ describe("a Meal's Recipe", () => {
 
     expect(screen.getByText(removesTheRecipe)).toBeInTheDocument();
     expect(setting).not.toHaveBeenCalled();
-    expect(rows()[0]).toHaveTextContent(hasARecipe);
+    expect(rows()[0]).toHaveTextContent(hasASourceRecipe);
   });
 
   it("shows a kept Recipe's parts as they were typed when it is opened again", async () => {

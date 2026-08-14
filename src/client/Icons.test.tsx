@@ -4,14 +4,18 @@ import {
   AddIcon,
   BackIcon,
   ChevronIcon,
+  MethodIcon,
   RespinIcon,
   SettingsIcon,
   ShareIcon,
+  SourceIcon,
 } from "./Icons";
 
 const drawings = [
   { name: "the share Icon", Icon: ShareIcon },
   { name: "the settings Icon", Icon: SettingsIcon },
+  { name: "the source Icon", Icon: SourceIcon },
+  { name: "the method Icon", Icon: MethodIcon },
   { name: "the chevron Icon", Icon: ChevronIcon },
   { name: "the back Icon", Icon: BackIcon },
   { name: "the re-spin Icon", Icon: RespinIcon },
