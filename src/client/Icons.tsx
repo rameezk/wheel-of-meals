@@ -56,6 +56,22 @@ export const SettingsIcon = (props: IconProps) => (
   </Icon>
 );
 
+export const SourceIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+    <path d="M15 3h6v6" />
+    <path d="M10 14 21 3" />
+  </Icon>
+);
+
+export const MethodIcon = (props: IconProps) => (
+  <Icon {...props}>
+    <line x1="4" y1="7" x2="20" y2="7" />
+    <line x1="4" y1="12" x2="20" y2="12" />
+    <line x1="4" y1="17" x2="13" y2="17" />
+  </Icon>
+);
+
 export const ChevronIcon = (props: IconProps) => (
   <Icon {...props}>
     <path d="M9.5 5.5 16 12l-6.5 6.5" />
