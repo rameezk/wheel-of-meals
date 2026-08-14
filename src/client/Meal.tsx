@@ -6,8 +6,10 @@ import {
   readRecipe,
   sourceMaxLength,
 } from "../shared/recipe";
-import type { RecipeDraft } from "./households";
-import type { RecipeWriting } from "./recipe-writing";
+import type { WholeMeal } from "./households";
+import { MealFields } from "./MealFields";
+import { named } from "./meals";
+import type { MealWriting } from "./meal-writing";
 import { ShareButton } from "./Share";
 import { recipeAsShareable } from "./sharing";
 import {
@@ -19,13 +21,13 @@ import {
   reallyButtonStyle,
 } from "./styles";
 
-type TheRecipeProps = {
+type TheMealProps = {
   meal: Meal;
   headingId: string;
   working: boolean;
   problem: string | null;
-  writing: RecipeWriting;
-  onSave: (draft: RecipeDraft) => void;
+  writing: MealWriting;
+  onSave: (draft: WholeMeal) => void;
 };
 
 const sourceLinkStyle =
@@ -38,7 +40,7 @@ const ingredientsPlaceholder = "1 onion, chopped\n2 tbsp butter\n400g tomatoes";
 const methodPlaceholder =
   "Fry the paste for two minutes longer than the page says.";
 
-const emptied = (draft: RecipeDraft) => {
+const emptied = (draft: WholeMeal) => {
   const read = readRecipe(draft);
   return "recipe" in read && read.recipe === null;
 };
@@ -52,14 +54,14 @@ export const discardsTheWriting =
 export const unsavedFromBefore =
   "You wrote this last time and did not save it. Save it to keep it, or discard it.";
 
-export const TheRecipe = ({
+export const TheMeal = ({
   meal,
   headingId,
   working,
   problem,
   writing,
   onSave,
-}: TheRecipeProps) => {
+}: TheMealProps) => {
   const { draft, asking, change } = writing;
   const sourceField = useId();
   const ingredientsField = useId();
@@ -67,6 +69,8 @@ export const TheRecipe = ({
 
   const save = (event: FormEvent) => {
     event.preventDefault();
+    if (!named(draft)) return;
+
     if (meal.recipe && emptied(draft)) {
       writing.askToEmpty();
       return;
@@ -82,7 +86,7 @@ export const TheRecipe = ({
           id={headingId}
           className="text-lg font-semibold break-words text-stone-100"
         >
-          <span className="text-emerald-300">Recipe</span> for {meal.name}
+          {meal.name}
         </h3>
 
         {writing.restored && (
@@ -99,6 +103,14 @@ export const TheRecipe = ({
           </div>
         )}
 
+        <MealFields
+          nameLabel="Name"
+          descriptionLabel="Description (optional)"
+          draft={draft}
+          onChange={(next) => change(next)}
+          focusName
+        />
+
         <label className={labelStyle} htmlFor={sourceField}>
           Source (optional)
           <input
@@ -108,7 +120,6 @@ export const TheRecipe = ({
             inputMode="url"
             placeholder="recipes.example.com/butter-chicken"
             maxLength={sourceMaxLength}
-            autoFocus
             className={fieldStyle}
           />
         </label>
@@ -197,7 +208,7 @@ export const TheRecipe = ({
               </button>
               <button
                 type="button"
-                aria-label={`Keep writing the Recipe for ${meal.name}`}
+                aria-label={`Keep writing ${meal.name}`}
                 onClick={writing.keepWriting}
                 className={quietButtonStyle}
               >
@@ -208,7 +219,7 @@ export const TheRecipe = ({
             <>
               <button
                 type="submit"
-                disabled={working}
+                disabled={working || !named(draft)}
                 className={`${loudButtonStyle} flex min-h-11 items-center px-5 text-sm font-medium disabled:opacity-50`}
               >
                 Save

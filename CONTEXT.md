@@ -20,9 +20,10 @@ _Avoid_: list, pool, library, wheel
 
 **Meal**:
 A single dish a [[Household]] is willing to cook, held in its [[Meal Bank]].
-A Meal is a name and, optionally, a free-text description. It is not itself a
-[[Recipe]]: how the dish is actually cooked lives in the Recipe a Meal may point
-at, and a Meal that points at none is complete as it stands.
+A Meal is a name and, optionally, a free-text description and a [[Recipe]],
+edited whole and saved in one act - its name, description and Recipe together,
+never through separate doors. How the dish is actually cooked lives in the
+Recipe a Meal may carry, and a Meal that carries none is complete as it stands.
 _Avoid_: dish, recipe, food, item
 
 **Recipe**:
@@ -31,8 +32,8 @@ Optional, and belongs to exactly one Meal - it is reached only through that Meal
 and goes with it when the Meal is deleted. It holds up to three parts, each
 optional on its own: a [[Source]], its [[Ingredients]] and its [[Method]]. A
 Recipe with no parts filled in does not exist, so saving an empty one removes it.
-It is written on its own rather than as part of editing the Meal, so saving a
-Recipe never touches the Meal's name or description.
+It is written as part of the [[Meal]], in the one act that saves the Meal's name
+and description, rather than on its own.
 _Avoid_: instructions, details, notes, card, page
 
 **Source**:

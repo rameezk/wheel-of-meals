@@ -181,7 +181,7 @@ describe("a Household page", () => {
     expect(screen.getByText(aSlug)).toBeInTheDocument();
     expect(screen.getByLabelText("Filter")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
+      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Sunday")).not.toBeInTheDocument();
   });

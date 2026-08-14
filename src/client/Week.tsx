@@ -4,11 +4,11 @@ import type { Meal } from "../shared/meal";
 import { respin, spareMeals, spin, type Week } from "../shared/week";
 import { dayLabels } from "./days";
 import { RespinIcon } from "./Icons";
-import type { RecipeDraft } from "./households";
-import { wholeMeal } from "./meals";
+import type { WholeMeal } from "./households";
+import { forgetDraft } from "./meal-drafts";
 import { flipStaggerMillis } from "./motion";
 import type { OpenHousehold } from "./open-household";
-import { RecipeSheet } from "./RecipeSheet";
+import { MealSheet } from "./MealSheet";
 import { ShareButton } from "./Share";
 import { weekAsText } from "./sharing";
 import { loudButtonStyle, openableTextStyle, quietButtonStyle } from "./styles";
@@ -137,9 +137,11 @@ export const TheWeek = ({
     setReadingRecipeOf(meal.id);
   };
 
-  const saveTheRecipe = async (meal: Meal, draft: RecipeDraft) => {
-    if (await openHousehold.saveMeal(meal.id, { ...wholeMeal(meal), ...draft }))
-      setReadingRecipeOf(null);
+  const saveTheMeal = async (meal: Meal, draft: WholeMeal) => {
+    if (!(await openHousehold.saveMeal(meal.id, draft))) return;
+
+    forgetDraft(meal.id);
+    setReadingRecipeOf(null);
   };
 
   const flips = spun > 0;
@@ -273,11 +275,11 @@ export const TheWeek = ({
       )}
 
       {readingRecipe && (
-        <RecipeSheet
+        <MealSheet
           meal={readingRecipe}
           working={working}
           problem={problem}
-          onSave={(draft) => void saveTheRecipe(readingRecipe, draft)}
+          onSave={(draft) => void saveTheMeal(readingRecipe, draft)}
           onClose={() => setReadingRecipeOf(null)}
         />
       )}

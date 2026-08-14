@@ -1,60 +1,10 @@
-import { useState, type FormEvent } from "react";
 import type { Meal } from "../shared/meal";
-import type { MealDraft } from "./households";
 import { MethodIcon, SourceIcon } from "./Icons";
-import { named } from "./meals";
-import { MealFields } from "./MealFields";
 import {
-  loudButtonStyle,
   openableTextStyle,
   quietButtonStyle,
   reallyButtonStyle,
 } from "./styles";
-
-const MealForm = ({
-  meal,
-  onSave,
-  onCancel,
-}: {
-  meal: Meal;
-  onSave: (draft: MealDraft) => void;
-  onCancel: () => void;
-}) => {
-  const [draft, setDraft] = useState<MealDraft>({
-    name: meal.name,
-    description: meal.description ?? "",
-  });
-
-  const save = (event: FormEvent) => {
-    event.preventDefault();
-    if (named(draft)) onSave(draft);
-  };
-
-  return (
-    <form onSubmit={save} className="flex flex-col gap-3">
-      <MealFields
-        nameLabel="Name"
-        descriptionLabel="Description"
-        draft={draft}
-        onChange={setDraft}
-        focusName
-      />
-      <div className="flex gap-2">
-        <button
-          type="submit"
-          className={`${loudButtonStyle} flex min-h-11 items-center px-5 text-sm font-medium`}
-        >
-          Save
-        </button>
-        <button type="button" onClick={onCancel} className={quietButtonStyle}>
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
-};
-
-export type RowOpenTo = "editing" | "confirming";
 
 export const hasASourceRecipe = "has a Recipe to follow";
 export const hasAMethodRecipe = "has a Recipe of its own";
@@ -66,87 +16,70 @@ const nameStyle = `${openableTextStyle} font-medium break-words text-stone-100 g
 
 type MealRowProps = {
   meal: Meal;
-  openTo: RowOpenTo | null;
-  onOpenRecipe: () => void;
-  onEdit: () => void;
-  onSave: (draft: MealDraft) => void;
+  confirming: boolean;
+  onOpen: () => void;
   onAskToDelete: () => void;
   onDelete: () => void;
-  onClose: () => void;
+  onKeep: () => void;
 };
 
 export const MealRow = ({
   meal,
-  openTo,
-  onOpenRecipe,
-  onEdit,
-  onSave,
+  confirming,
+  onOpen,
   onAskToDelete,
   onDelete,
-  onClose,
-}: MealRowProps) =>
-  openTo === "editing" ? (
-    <MealForm meal={meal} onSave={onSave} onCancel={onClose} />
-  ) : (
-    <div className="flex items-start justify-between gap-3">
-      <button type="button" onClick={onOpenRecipe} className={rowTextStyle}>
-        <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className={nameStyle}>{meal.name}</span>
-          {meal.recipe && (
-            <span className="shrink-0 self-center text-sm text-emerald-300">
-              {meal.recipe.source ? <SourceIcon /> : <MethodIcon />}
-              <span className="sr-only">
-                , {meal.recipe.source ? hasASourceRecipe : hasAMethodRecipe}
-              </span>
+  onKeep,
+}: MealRowProps) => (
+  <div className="flex items-start justify-between gap-3">
+    <button type="button" onClick={onOpen} className={rowTextStyle}>
+      <span className="flex min-w-0 items-baseline gap-1.5">
+        <span className={nameStyle}>{meal.name}</span>
+        {meal.recipe && (
+          <span className="shrink-0 self-center text-sm text-emerald-300">
+            {meal.recipe.source ? <SourceIcon /> : <MethodIcon />}
+            <span className="sr-only">
+              , {meal.recipe.source ? hasASourceRecipe : hasAMethodRecipe}
             </span>
-          )}
-        </span>
-        {meal.description && (
-          <span className="text-sm break-words text-stone-400">
-            {meal.description}
           </span>
         )}
-      </button>
-      <div className="flex shrink-0 gap-2">
-        {openTo === "confirming" ? (
-          <>
-            <button
-              type="button"
-              aria-label={`Yes, delete ${meal.name}`}
-              onClick={onDelete}
-              className={`${reallyButtonStyle} flex min-h-11 items-center px-4 text-sm font-medium`}
-            >
-              Really?
-            </button>
-            <button
-              type="button"
-              aria-label={`Keep ${meal.name}`}
-              onClick={onClose}
-              className={quietButtonStyle}
-            >
-              Keep
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              aria-label={`Edit ${meal.name}`}
-              onClick={onEdit}
-              className={quietButtonStyle}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              aria-label={`Delete ${meal.name}`}
-              onClick={onAskToDelete}
-              className={quietButtonStyle}
-            >
-              Delete
-            </button>
-          </>
-        )}
-      </div>
+      </span>
+      {meal.description && (
+        <span className="text-sm break-words text-stone-400">
+          {meal.description}
+        </span>
+      )}
+    </button>
+    <div className="flex shrink-0 gap-2">
+      {confirming ? (
+        <>
+          <button
+            type="button"
+            aria-label={`Yes, delete ${meal.name}`}
+            onClick={onDelete}
+            className={`${reallyButtonStyle} flex min-h-11 items-center px-4 text-sm font-medium`}
+          >
+            Really?
+          </button>
+          <button
+            type="button"
+            aria-label={`Keep ${meal.name}`}
+            onClick={onKeep}
+            className={quietButtonStyle}
+          >
+            Keep
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          aria-label={`Delete ${meal.name}`}
+          onClick={onAskToDelete}
+          className={quietButtonStyle}
+        >
+          Delete
+        </button>
+      )}
     </div>
-  );
+  </div>
+);

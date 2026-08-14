@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { duplicateMeal, mealBankFull } from "../shared/api";
@@ -9,7 +9,7 @@ import { wholeMeal } from "./meals";
 import { landedHighlightMillis } from "./motion";
 import { hasAMethodRecipe, hasASourceRecipe } from "./MealRow";
 import { methodTooLong } from "../shared/recipe";
-import { removesTheRecipe } from "./Recipe";
+import { removesTheRecipe } from "./Meal";
 import { landedRowStyle } from "./styles";
 import {
   aHousehold,
@@ -79,9 +79,9 @@ const ingredientsField = () => screen.getByLabelText(/ingredients/i);
 const methodField = () => screen.getByLabelText(/method/i);
 
 const theSheet = (meal: Meal) =>
-  screen.queryByRole("dialog", {
-    name: new RegExp(`Recipe for\\s*${meal.name}`),
-  });
+  screen.queryByRole("dialog", { name: meal.name });
+
+const nameField = () => screen.getByLabelText(/^name$/i);
 
 const highlightedRow = () =>
   rows().find((row) => row.className.includes(landedRowStyle)) ?? null;
@@ -191,19 +191,18 @@ describe("the Meal Bank", () => {
     expect(addButton()).toBeDisabled();
   });
 
-  it("edits a Meal in place", async () => {
+  it("edits a Meal's name from the sheet", async () => {
     const households = await showBank([aMeal]);
     const editing = vi.spyOn(households, "saveMeal");
 
-    await press(`Edit ${aMeal.name}`);
-    const name = screen.getByLabelText(/^name$/i);
-    await userEvent.clear(name);
-    await userEvent.type(name, "Butter Chicken");
-    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    await openRecipe(aMeal);
+    await userEvent.clear(nameField());
+    await userEvent.type(nameField(), "Butter Chicken");
+    await press("Save");
 
     expect(await screen.findByText("Butter Chicken")).toBeInTheDocument();
     expect(screen.getByText(String(aMeal.description))).toBeInTheDocument();
-    expect(screen.queryByLabelText(/^name$/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(editing).toHaveBeenCalledWith(aSlug, aMeal.id, {
       ...wholeMeal(aMeal),
       name: "Butter Chicken",
@@ -214,11 +213,11 @@ describe("the Meal Bank", () => {
     const households = await showBank([aMeal]);
     const editing = vi.spyOn(households, "saveMeal");
 
-    await press(`Edit ${aMeal.name}`);
-    const name = screen.getByLabelText(/^name$/i);
-    await userEvent.clear(name);
-    await userEvent.type(name, "Something else");
-    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await openRecipe(aMeal);
+    await userEvent.clear(nameField());
+    await userEvent.type(nameField(), "Something else");
+    await press("Cancel");
+    await press(`Yes, discard the writing for ${aMeal.name}`);
 
     expect(screen.getByText(aMeal.name)).toBeInTheDocument();
     expect(editing).not.toHaveBeenCalled();
@@ -261,12 +260,12 @@ describe("the Meal Bank", () => {
     await typeName("butter chicken");
     await pressAdd();
     await screen.findByRole("alert");
-    await press(`Edit ${aMeal.name}`);
+    await openRecipe(aMeal);
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
+    await press("Cancel");
     households.refuseNextChange(duplicateMeal);
-    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
     await pressAdd();
     await screen.findByRole("alert");
     await press(`Delete ${aMeal.name}`);
@@ -332,18 +331,6 @@ describe("the Meal Bank", () => {
     await filterBy("n");
 
     expect(screen.getByText("2 of 2 Meals")).toBeInTheDocument();
-  });
-
-  it("drops a pending edit when the filter narrows past it", async () => {
-    await showBank([aMeal, lasagne]);
-
-    await press(`Edit ${aMeal.name}`);
-    await filterBy("lasa");
-    await userEvent.clear(screen.getByLabelText("Filter"));
-
-    expect(
-      screen.getByRole("button", { name: `Edit ${aMeal.name}` }),
-    ).toBeInTheDocument();
   });
 
   it("disarms a pending deletion when the filter narrows past it", async () => {
@@ -462,11 +449,10 @@ describe("the Meal Bank", () => {
   it("highlights nothing when a Meal is edited", async () => {
     await showBank([aMeal]);
 
-    await press(`Edit ${aMeal.name}`);
-    const name = screen.getByLabelText(/^name$/i);
-    await userEvent.clear(name);
-    await userEvent.type(name, "Butter Chicken");
-    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    await openRecipe(aMeal);
+    await userEvent.clear(nameField());
+    await userEvent.type(nameField(), "Butter Chicken");
+    await press("Save");
 
     await screen.findByText("Butter Chicken");
     expect(highlightedRow()).toBeNull();
@@ -752,17 +738,24 @@ describe("a Meal's Recipe", () => {
     const row = rowFor(aMeal);
 
     await openRecipe(aMeal);
-    expect(sourceField()).toHaveFocus();
+    expect(nameField()).toHaveFocus();
 
     await press("Cancel");
 
     expect(row).toHaveFocus();
   });
 
-  it("walks the three parts in order with the keyboard alone", async () => {
+  it("walks its fields in order with the keyboard alone", async () => {
     await showBank([aMeal]);
 
     await openRecipe(aMeal);
+    const sheet = within(theSheet(aMeal)!);
+    expect(nameField()).toHaveFocus();
+
+    await userEvent.tab();
+    expect(sheet.getByLabelText(/description/i)).toHaveFocus();
+
+    await userEvent.tab();
     expect(sourceField()).toHaveFocus();
 
     await userEvent.tab();
@@ -805,16 +798,70 @@ describe("a Meal's Recipe", () => {
     expect(rows()).toHaveLength(1);
   });
 
-  it("keeps Edit and Delete working alongside the control that opens it", async () => {
+  it("keeps Delete working alongside the control that opens the sheet", async () => {
     await showBank([aMealWithARecipe]);
 
-    await press(`Edit ${aMealWithARecipe.name}`);
-    await userEvent.click(screen.getByRole("button", { name: /cancel/i }));
+    await openRecipe(aMealWithARecipe);
+    await press("Cancel");
     await press(`Delete ${aMealWithARecipe.name}`);
     await press(`Keep ${aMealWithARecipe.name}`);
 
     expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
     expect(rows()).toHaveLength(1);
+  });
+});
+
+describe("editing a whole Meal from one sheet", () => {
+  it("writes a changed name and a new Method in one Save", async () => {
+    const households = await showBank([aMeal]);
+    const saving = vi.spyOn(households, "saveMeal");
+
+    await openRecipe(aMeal);
+    await userEvent.clear(nameField());
+    await userEvent.type(nameField(), "Butter Chicken");
+    await userEvent.type(methodField(), "Fry the paste.");
+    await press("Save");
+
+    expect(saving).toHaveBeenCalledWith(aSlug, aMeal.id, {
+      ...wholeMeal(aMeal),
+      name: "Butter Chicken",
+      method: "Fry the paste.",
+    });
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("no longer offers a separate Edit control on the row", async () => {
+    await showBank([aMeal]);
+
+    expect(
+      screen.queryByRole("button", { name: `Edit ${aMeal.name}` }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: `Delete ${aMeal.name}` }),
+    ).toBeInTheDocument();
+  });
+
+  it("titles the sheet by the Meal, not by a part of it", async () => {
+    await showBank([aMealWithARecipe]);
+
+    await openRecipe(aMealWithARecipe);
+
+    expect(theSheet(aMealWithARecipe)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: aMealWithARecipe.name }),
+    ).toBeInTheDocument();
+  });
+
+  it("gives the sheet no way to delete the Meal", async () => {
+    await showBank([aMeal]);
+
+    await openRecipe(aMeal);
+
+    expect(
+      within(theSheet(aMeal)!).queryByRole("button", { name: /delete/i }),
+    ).not.toBeInTheDocument();
   });
 });
 

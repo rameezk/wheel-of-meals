@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Meal } from "../shared/meal";
@@ -7,7 +7,7 @@ import {
   householdsInMemory,
   type HouseholdsInMemory,
 } from "./households-in-memory";
-import { discardsTheWriting, unsavedFromBefore } from "./Recipe";
+import { discardsTheWriting, unsavedFromBefore } from "./Meal";
 import {
   aHousehold,
   aMeal,
@@ -49,10 +49,12 @@ const sourceField = () => screen.getByLabelText(/source/i);
 
 const methodField = () => screen.getByLabelText(/method/i);
 
+const nameField = () => screen.getByLabelText(/^name$/i);
+
+const saveButton = () => screen.getByRole("button", { name: "Save" });
+
 const theSheet = (meal: Meal) =>
-  screen.queryByRole("dialog", {
-    name: new RegExp(`Recipe for\\s*${meal.name}`),
-  });
+  screen.queryByRole("dialog", { name: meal.name });
 
 const theNotice = () => screen.queryByText(unsavedFromBefore);
 
@@ -80,6 +82,31 @@ describe("closing a Recipe sheet with unsaved changes", () => {
     expect(theQuestion()).toBeInTheDocument();
     expect(theSheet(aMeal)).toBeInTheDocument();
     expect(methodField()).toHaveValue("Fry the paste.");
+  });
+
+  it("counts a changed name as unsaved work", async () => {
+    await showBank(aBankOf([aMeal]));
+
+    await openRecipe(aMeal);
+    await userEvent.type(nameField(), " curry");
+    await press("Cancel");
+
+    expect(theQuestion()).toBeInTheDocument();
+    expect(theSheet(aMeal)).toBeInTheDocument();
+  });
+
+  it("counts a changed description as unsaved work", async () => {
+    await showBank(aBankOf([aMeal]));
+
+    await openRecipe(aMeal);
+    await userEvent.type(
+      within(theSheet(aMeal)!).getByLabelText(/description/i),
+      " tonight",
+    );
+    await press("Cancel");
+
+    expect(theQuestion()).toBeInTheDocument();
+    expect(theSheet(aMeal)).toBeInTheDocument();
   });
 
   it("asks before the keyboard throws the writing away", async () => {
@@ -155,7 +182,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
     await openRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Cancel");
-    await press(`Keep writing the Recipe for ${aMeal.name}`);
+    await press(`Keep writing ${aMeal.name}`);
 
     expect(theQuestion()).not.toBeInTheDocument();
     expect(theSheet(aMeal)).toBeInTheDocument();
@@ -205,6 +232,57 @@ describe("a Recipe the device held on to", () => {
     await openRecipe(aMeal);
 
     expect(methodField()).toHaveValue("Fry the paste.");
+  });
+
+  it("holds a half-written name across all five fields", async () => {
+    const households = aBankOf([aMeal]);
+    const shown = await showBank(households);
+
+    await openRecipe(aMeal);
+    await userEvent.clear(nameField());
+    await userEvent.type(nameField(), "Bunny chow");
+    await userEvent.type(methodField(), "Fry the paste.");
+    shown.unmount();
+
+    await showBank(households);
+    await openRecipe(aMeal);
+
+    expect(nameField()).toHaveValue("Bunny chow");
+    expect(methodField()).toHaveValue("Fry the paste.");
+  });
+
+  it("restores an empty name with Save unavailable until one is filled", async () => {
+    const households = aBankOf([aMeal]);
+    const shown = await showBank(households);
+
+    await openRecipe(aMeal);
+    await userEvent.clear(nameField());
+    shown.unmount();
+
+    await showBank(households);
+    await openRecipe(aMeal);
+
+    expect(theNotice()).toBeInTheDocument();
+    expect(nameField()).toHaveValue("");
+    expect(saveButton()).toBeDisabled();
+
+    await userEvent.type(nameField(), "Butter chicken");
+    expect(saveButton()).toBeEnabled();
+  });
+
+  it("abandons work held under the old Recipe-only key", async () => {
+    localStorage.setItem(
+      "wheel-of-meals.recipe-drafts",
+      JSON.stringify({
+        [aMeal.id]: { source: "", ingredients: "", method: "Old writing." },
+      }),
+    );
+    await showBank(aBankOf([aMeal]));
+
+    await openRecipe(aMeal);
+
+    expect(theNotice()).not.toBeInTheDocument();
+    expect(methodField()).toHaveValue("");
   });
 
   it("offers it as unsaved work rather than as the saved Recipe", async () => {

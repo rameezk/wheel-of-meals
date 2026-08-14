@@ -1,28 +1,28 @@
 import { useEffect, useId, useRef, type KeyboardEvent } from "react";
 import type { Meal } from "../shared/meal";
-import type { RecipeDraft } from "./households";
-import { TheRecipe } from "./Recipe";
-import { useRecipeWriting } from "./recipe-writing";
+import type { WholeMeal } from "./households";
+import { TheMeal } from "./Meal";
+import { useMealWriting } from "./meal-writing";
 
-type RecipeSheetProps = {
+type MealSheetProps = {
   meal: Meal;
   working: boolean;
   problem: string | null;
-  onSave: (draft: RecipeDraft) => void;
+  onSave: (draft: WholeMeal) => void;
   onClose: () => void;
 };
 
 const canBeFocused =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-export const RecipeSheet = ({
+export const MealSheet = ({
   meal,
   working,
   problem,
   onSave,
   onClose,
-}: RecipeSheetProps) => {
-  const writing = useRecipeWriting(meal, onClose);
+}: MealSheetProps) => {
+  const writing = useMealWriting(meal, onClose);
   const headingId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const cameFrom = useRef(
@@ -42,12 +42,12 @@ export const RecipeSheet = ({
   }, []);
 
   useEffect(() => {
-    window.history.pushState({ recipe: meal.id }, "");
+    window.history.pushState({ meal: meal.id }, "");
     let wentBack = false;
 
     const back = () => {
       if (latest.current.unsaved) {
-        window.history.pushState({ recipe: meal.id }, "");
+        window.history.pushState({ meal: meal.id }, "");
         latest.current.askToLeave();
         return;
       }
@@ -98,7 +98,7 @@ export const RecipeSheet = ({
         onKeyDown={keptWithin}
         className="mx-auto flex max-h-full w-full max-w-md flex-1 flex-col overflow-hidden rounded-2xl border border-stone-800 bg-stone-950 p-5"
       >
-        <TheRecipe
+        <TheMeal
           meal={meal}
           headingId={headingId}
           working={working}
