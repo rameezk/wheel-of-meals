@@ -8,6 +8,7 @@ import { forgetDraft } from "./meal-drafts";
 import { MealFields } from "./MealFields";
 import { MealRow } from "./MealRow";
 import { MealSheet } from "./MealSheet";
+import { BackIcon } from "./Icons";
 import {
   alertStyle,
   fieldStyle,
@@ -99,7 +100,7 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
           title="Back to the Household"
         >
           <span className="sr-only">Back to the Household</span>
-          <span aria-hidden>←</span>
+          <BackIcon />
         </button>
 
         <label className="sr-only" htmlFor={filterField}>

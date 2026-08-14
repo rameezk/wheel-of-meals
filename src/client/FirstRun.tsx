@@ -3,6 +3,7 @@ import { mealNameMaxLength } from "../shared/meal";
 import { mealsHeld } from "./meals";
 import type { OpenHousehold } from "./open-household";
 import { mealSuggestions } from "./suggestions";
+import { AddIcon } from "./Icons";
 import {
   alertStyle,
   fieldStyle,
@@ -66,9 +67,7 @@ export const FirstRun = ({ openHousehold, onSpin, onSkip }: FirstRunProps) => {
                 aria-label={`Add ${name}`}
                 className={suggestionStyle}
               >
-                <span aria-hidden className="text-emerald-400">
-                  +
-                </span>
+                <AddIcon className="text-emerald-400" />
                 {name}
               </button>
             </li>
