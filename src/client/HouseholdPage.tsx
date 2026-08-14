@@ -6,7 +6,7 @@ import { FirstRun } from "./FirstRun";
 import { firstRunSkipped, skipFirstRun } from "./guiding";
 import type { Households } from "./households";
 import { HouseholdSettings } from "./HouseholdSettings";
-import { SettingsIcon } from "./Icons";
+import { ChevronIcon, SettingsIcon } from "./Icons";
 import { MealBank } from "./MealBank";
 import { whatTheBankHolds } from "./meals";
 import { useOpenHousehold } from "./open-household";
@@ -133,9 +133,7 @@ export const HouseholdPage = ({
                     {whatTheBankHolds(household.mealBank.length)}
                   </span>
                 </span>
-                <span aria-hidden className="shrink-0 text-stone-500">
-                  ›
-                </span>
+                <ChevronIcon className="shrink-0 text-stone-500" />
               </button>
 
               <div className="flex items-start justify-center gap-2">
