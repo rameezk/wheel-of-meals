@@ -6,7 +6,6 @@ import { dayLabels } from "./days";
 import { wholeMeal } from "./meals";
 import { flipStaggerMillis, wheelSpinMillis } from "./motion";
 import type { OpenHousehold } from "./open-household";
-import type { Recipe } from "../shared/recipe";
 import {
   anOpenHousehold,
   aRecipe,
@@ -38,22 +37,6 @@ const aBankOf = (...names: string[]): Meal[] =>
     name,
     description: null,
     recipe: null,
-  }));
-
-const aBankOfDescribed = (...described: [string, string][]): Meal[] =>
-  described.map(([name, description]) => ({
-    id: `meal-${name}`,
-    name,
-    description,
-    recipe: null,
-  }));
-
-const aBankOfCooked = (...cooked: [string, Partial<Recipe>][]): Meal[] =>
-  cooked.map(([name, recipe]) => ({
-    id: `meal-${name}`,
-    name,
-    description: null,
-    recipe: aRecipe(recipe),
   }));
 
 type AWeekProps = {
@@ -491,214 +474,48 @@ describe("a re-spin", () => {
   });
 });
 
-describe("a Meal's description", () => {
+describe("a drawn Meal's sheet", () => {
   const coconutMilk = "The one with the coconut milk";
-  const slowCooker = "Only if the slow cooker is free";
-  const chilliOil = "Extra chilli oil, always";
-
-  const describedBank = [
-    ...aBankOfDescribed(["Butter chicken", coconutMilk]),
-    ...aBankOf("Lasagne"),
-    ...aBankOfDescribed(["Bobotie", slowCooker]),
-    ...aBankOf("Pad thai", "Shakshuka"),
-  ];
-
-  const withASpare = [
-    ...describedBank,
-    ...aBankOfDescribed(["Ramen", chilliOil]),
-  ];
-
-  const justButterChicken = aBankOfDescribed(["Butter chicken", coconutMilk]);
-
-  const openerFor = (day: string) =>
-    within(cardFor(day)).queryByRole("button", { name: /description/i });
-
-  beforeEach(() => {
-    vi.spyOn(Math, "random").mockReturnValue(0);
-  });
-
-  it("offers a described Meal's name as something to open", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-
-    expect(openerFor("Sunday")!).toHaveAccessibleName(
-      "Butter chicken, description",
-    );
-  });
-
-  it("leaves a Meal with no description with nothing to open", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-
-    expect(cardFor("Monday")).toHaveTextContent("Lasagne");
-    expect(openerFor("Monday")).toBeNull();
-  });
-
-  it("offers nothing to open before the Week is spun", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    expect(screen.queryByRole("button", { name: /description/i })).toBeNull();
-  });
-
-  it("offers nothing to open on an empty day of a thin Week", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={justButterChicken} />);
-
-    spinIt();
-
-    expect(cardFor("Thursday")).toHaveTextContent(/no meal/i);
-    expect(openerFor("Thursday")).toBeNull();
-  });
-
-  it("offers nothing to open on a day the Household does not cook", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-
-    expect(openerFor("Friday")).toBeNull();
-  });
-
-  it("keeps the description out of the Week until it is asked for", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-
-    expect(screen.queryByText(coconutMilk)).toBeNull();
-    expect(openerFor("Sunday")!).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("reveals the description in full under the name, and hides it again", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-    click(openerFor("Sunday")!);
-
-    expect(
-      within(cardFor("Sunday")).getByText(coconutMilk),
-    ).toBeInTheDocument();
-    expect(openerFor("Sunday")!).toHaveAttribute("aria-expanded", "true");
-
-    click(openerFor("Sunday")!);
-
-    expect(screen.queryByText(coconutMilk)).toBeNull();
-    expect(openerFor("Sunday")!).toHaveAttribute("aria-expanded", "false");
-  });
-
-  it("holds two days open at once", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-    click(openerFor("Sunday")!);
-    click(openerFor("Tuesday")!);
-
-    expect(screen.getByText(coconutMilk)).toBeInTheDocument();
-    expect(screen.getByText(slowCooker)).toBeInTheDocument();
-  });
-
-  it("closes every open description when the Week is spun again", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={describedBank} />);
-
-    spinIt();
-    click(openerFor("Sunday")!);
-    click(openerFor("Tuesday")!);
-
-    spinIt();
-
-    expect(screen.queryByText(coconutMilk)).toBeNull();
-    expect(screen.queryByText(slowCooker)).toBeNull();
-  });
-
-  it("closes the day it re-spins, and leaves the other open days alone", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={withASpare} />);
-
-    spinIt();
-    click(openerFor("Sunday")!);
-    click(openerFor("Tuesday")!);
-
-    click(respinFor("Tuesday"));
-
-    expect(cardFor("Tuesday")).toHaveTextContent("Ramen");
-    expect(screen.queryByText(slowCooker)).toBeNull();
-    expect(screen.queryByText(chilliOil)).toBeNull();
-    expect(openerFor("Tuesday")!).toHaveAttribute("aria-expanded", "false");
-    expect(
-      within(cardFor("Sunday")).getByText(coconutMilk),
-    ).toBeInTheDocument();
-  });
-
-  it("says the Week out loud as names, without the descriptions", () => {
-    render(<AWeek cookingDays={["sunday"]} mealBank={justButterChicken} />);
-
-    spinIt();
-    click(openerFor("Sunday")!);
-
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Sunday: Butter chicken",
-    );
-    expect(screen.getByRole("status")).not.toHaveTextContent(coconutMilk);
-  });
-
-  it("shares the Week as names, without the descriptions", async () => {
-    const shared = withAShareSheet();
-    render(<AWeek cookingDays={["sunday"]} mealBank={justButterChicken} />);
-
-    spinIt();
-    click(openerFor("Sunday")!);
-    await act(async () => {
-      click(screen.getByRole("button", { name: /share/i }));
-      await Promise.resolve();
-    });
-
-    expect(shared).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Sunday: Butter chicken" }),
-    );
-  });
-});
-
-describe("a Meal's Recipe", () => {
-  const fryThePaste = "Fry the paste for two minutes longer than the page says";
   const grandmothers = "Grandmother's, off the back of the tin";
-  const slowCooker = "Only if the slow cooker is free";
+  const fryThePaste = "Fry the paste for two minutes longer than the page says";
   const source = "https://recipes.example.com/bobotie";
+
+  const butterChicken: Meal = {
+    id: "meal-Butter chicken",
+    name: "Butter chicken",
+    description: coconutMilk,
+    recipe: null,
+  };
+
+  const lasagne: Meal = {
+    id: "meal-Lasagne",
+    name: "Lasagne",
+    description: null,
+    recipe: null,
+  };
 
   const bobotie: Meal = {
     id: "meal-Bobotie",
     name: "Bobotie",
-    description: slowCooker,
-    recipe: aRecipe({ source }),
+    description: grandmothers,
+    recipe: aRecipe({ source, method: fryThePaste }),
   };
 
-  const cookedBank = [
-    ...aBankOfCooked(["Butter chicken", { method: fryThePaste }]),
-    ...aBankOfDescribed(["Lasagne", grandmothers]),
+  const bank = [
+    butterChicken,
+    lasagne,
     bobotie,
     ...aBankOf("Pad thai", "Shakshuka"),
   ];
 
-  const withASpare = [...cookedBank, ...aBankOf("Ramen")];
-
-  const justButterChicken = aBankOfCooked([
-    "Butter chicken",
-    { method: fryThePaste },
-  ]);
-
-  const openerFor = (day: string, name: string) =>
-    within(cardFor(day)).queryByRole("button", {
-      name: new RegExp(`^${name},`),
-    });
-
-  const wayInFor = (day: string) =>
-    within(cardFor(day)).queryByRole("button", { name: /^recipe for/i });
+  const nameOn = (day: string, name: string) =>
+    within(cardFor(day)).queryByRole("button", { name: `Open ${name}` });
 
   const theSheet = () => screen.queryByRole("dialog");
 
-  const openTheRecipeOn = (day: string, name: string) => {
-    click(openerFor(day, name)!);
-    click(wayInFor(day)!);
-  };
-
   const close = () => click(screen.getByRole("button", { name: /cancel/i }));
+
+  const nameField = () => screen.getByLabelText(/^name$/i);
 
   const methodField = () => screen.getByLabelText(/method/i);
 
@@ -712,123 +529,109 @@ describe("a Meal's Recipe", () => {
     vi.spyOn(Math, "random").mockReturnValue(0);
   });
 
-  it("offers a way into the Recipe of a drawn Meal that has one", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("offers every drawn Meal's name as something to open, bare ones included", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
 
-    expect(wayInFor("Sunday")).toHaveAccessibleName(
-      "Recipe for Butter chicken",
-    );
+    expect(nameOn("Sunday", "Butter chicken")).toBeInTheDocument();
+    expect(nameOn("Monday", "Lasagne")).toBeInTheDocument();
+    expect(nameOn("Tuesday", "Bobotie")).toBeInTheDocument();
   });
 
-  it("opens a Meal that has a Recipe and no description at all", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("tells a screen reader each drawn Meal is one it can open", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
 
-    expect(openerFor("Sunday", "Butter chicken")).toHaveAccessibleName(
-      "Butter chicken, Recipe",
-    );
+    expect(nameOn("Monday", "Lasagne")).toHaveAccessibleName("Open Lasagne");
   });
 
-  it("says a Meal that holds both holds both", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("shows a drawn Meal's description on its row without any interaction", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
-    click(openerFor("Tuesday", "Bobotie")!);
 
-    expect(openerFor("Tuesday", "Bobotie")).toHaveAccessibleName(
-      "Bobotie, description and Recipe",
-    );
     expect(
-      within(cardFor("Tuesday")).getByText(slowCooker),
+      within(cardFor("Sunday")).getByText(coconutMilk),
     ).toBeInTheDocument();
-    expect(wayInFor("Tuesday")).toBeInTheDocument();
   });
 
-  it("leaves a Meal with a description and no Recipe exactly as it was", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
-
-    spinIt();
-    click(openerFor("Monday", "Lasagne")!);
-
-    expect(openerFor("Monday", "Lasagne")).toHaveAccessibleName(
-      "Lasagne, description",
-    );
-    expect(
-      within(cardFor("Monday")).getByText(grandmothers),
-    ).toBeInTheDocument();
-    expect(wayInFor("Monday")).toBeNull();
-  });
-
-  it("leaves a Meal with neither with nothing to open", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("leaves a Meal with no description just its name on the row", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
 
-    expect(cardFor("Wednesday")).toHaveTextContent("Pad thai");
-    expect(openerFor("Wednesday", "Pad thai")).toBeNull();
+    expect(cardFor("Monday")).toHaveTextContent("Lasagne");
+    expect(cardFor("Monday")).not.toHaveTextContent(coconutMilk);
   });
 
-  it("offers nothing on an empty day of a thin Week", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={justButterChicken} />);
+  it("offers nothing to open before the Week is spun", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
+
+    expect(screen.queryByRole("button", { name: /^open / })).toBeNull();
+  });
+
+  it("offers nothing to open on an empty day of a thin Week", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={[butterChicken]} />);
 
     spinIt();
 
     expect(cardFor("Thursday")).toHaveTextContent(/no meal/i);
-    expect(wayInFor("Thursday")).toBeNull();
+    expect(
+      within(cardFor("Thursday")).queryByRole("button", { name: /^open / }),
+    ).toBeNull();
   });
 
-  it("offers nothing on a day the Household does not cook", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("offers nothing to open on a day the Household does not cook", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
 
-    expect(wayInFor("Friday")).toBeNull();
+    expect(
+      within(cardFor("Friday")).queryByRole("button", { name: /^open / }),
+    ).toBeNull();
   });
 
-  it("leaves the re-spin control exactly where it was, and the size it was", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={withASpare} />);
+  it("brings the sheet up over the Week, on the Meal's current values", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
-    const respin = respinFor("Sunday");
-    const size = respin.className;
+    click(nameOn("Tuesday", "Bobotie")!);
 
-    click(openerFor("Sunday", "Butter chicken")!);
-
-    expect(respinFor("Sunday")).toBe(respin);
-    expect(respinFor("Sunday").className).toBe(size);
-  });
-
-  it("brings the Recipe up over the Week, as the Meal Bank shows it", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
-
-    spinIt();
-    openTheRecipeOn("Sunday", "Butter chicken");
-
-    expect(theSheet()).toHaveAccessibleName("Butter chicken");
+    expect(theSheet()).toHaveAccessibleName("Bobotie");
     expect(methodField()).toHaveValue(fryThePaste);
-  });
-
-  it("offers the Source to follow from here", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
-
-    spinIt();
-    openTheRecipeOn("Tuesday", "Bobotie");
-
     expect(
       within(theSheet()!).getByRole("link", { name: source }),
     ).toHaveAttribute("href", source);
   });
 
-  it("leaves the Week whole when the sheet closes, and turns no wheel", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("opens a bare Meal's sheet just the same", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
-    click(openerFor("Tuesday", "Bobotie")!);
-    openTheRecipeOn("Sunday", "Butter chicken");
+    click(nameOn("Monday", "Lasagne")!);
+
+    expect(theSheet()).toHaveAccessibleName("Lasagne");
+  });
+
+  it("opens nothing while the wheel is still turning", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
+
+    spinIt();
+    const open = nameOn("Sunday", "Butter chicken")!;
+
+    click(theSpin());
+    click(open);
+
+    expect(theSheet()).toBeNull();
+  });
+
+  it("leaves the Week whole when the sheet closes, and turns no wheel", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
+
+    spinIt();
+    click(nameOn("Sunday", "Butter chicken")!);
     close();
 
     expect(theSheet()).toBeNull();
@@ -837,38 +640,23 @@ describe("a Meal's Recipe", () => {
       expect(screen.getByText(name)).toBeInTheDocument();
   });
 
-  it("returns to the Week with the same day panels open as before", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+  it("hands focus back to the name that opened it", () => {
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
-    click(openerFor("Tuesday", "Bobotie")!);
-    openTheRecipeOn("Sunday", "Butter chicken");
+    const open = nameOn("Sunday", "Butter chicken")!;
+    open.focus();
+    click(open);
     close();
 
-    expect(
-      within(cardFor("Tuesday")).getByText(slowCooker),
-    ).toBeInTheDocument();
-    expect(wayInFor("Sunday")).toBeInTheDocument();
-  });
-
-  it("hands focus back to the control that opened it", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
-
-    spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
-    const wayIn = wayInFor("Sunday")!;
-    wayIn.focus();
-    click(wayIn);
-    close();
-
-    expect(wayIn).toHaveFocus();
+    expect(open).toHaveFocus();
   });
 
   it("closes on the back gesture rather than leaving the Week", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
+    render(<AWeek cookingDays={cookingDays} mealBank={bank} />);
 
     spinIt();
-    openTheRecipeOn("Sunday", "Butter chicken");
+    click(nameOn("Sunday", "Butter chicken")!);
     act(() => {
       window.dispatchEvent(new PopStateEvent("popstate"));
     });
@@ -877,111 +665,91 @@ describe("a Meal's Recipe", () => {
     expect(screen.getByText("Butter chicken")).toBeInTheDocument();
   });
 
-  it("closes the way in on the day it re-spins, and leaves another day's", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={withASpare} />);
-
-    spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
-    click(openerFor("Tuesday", "Bobotie")!);
-
-    click(respinFor("Tuesday"));
-
-    expect(cardFor("Tuesday")).toHaveTextContent("Ramen");
-    expect(wayInFor("Tuesday")).toBeNull();
-    expect(wayInFor("Sunday")).toBeInTheDocument();
-  });
-
-  it("closes every way in when the Week is spun again", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
-
-    spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
-    click(openerFor("Tuesday", "Bobotie")!);
-
-    spinIt();
-
-    expect(screen.queryByRole("button", { name: /^recipe for/i })).toBeNull();
-  });
-
-  it("opens nothing while the wheel is still turning", () => {
-    render(<AWeek cookingDays={cookingDays} mealBank={cookedBank} />);
-
-    spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
-    const wayIn = wayInFor("Sunday")!;
-
-    click(theSpin());
-    click(wayIn);
-
-    expect(theSheet()).toBeNull();
-  });
-
-  it("writes an edited Recipe back through the Household", async () => {
-    const saveMeal = vi.fn(() => Promise.resolve(cookedBank[0]!));
+  it("writes an edited Meal back through the Household", async () => {
+    const saveMeal = vi.fn(() => Promise.resolve(butterChicken));
     render(
-      <AWeek
-        cookingDays={cookingDays}
-        mealBank={cookedBank}
-        parts={{ saveMeal }}
-      />,
+      <AWeek cookingDays={cookingDays} mealBank={bank} parts={{ saveMeal }} />,
     );
 
     spinIt();
-    openTheRecipeOn("Sunday", "Butter chicken");
-    fireEvent.change(methodField(), { target: { value: "Fry it longer" } });
+    click(nameOn("Sunday", "Butter chicken")!);
+    fireEvent.change(nameField(), { target: { value: "Thai green curry" } });
+    fireEvent.change(methodField(), {
+      target: { value: "Simmer for an hour" },
+    });
     await saveIt();
 
     expect(saveMeal).toHaveBeenCalledWith("meal-Butter chicken", {
-      ...wholeMeal(cookedBank[0]!),
-      method: "Fry it longer",
+      ...wholeMeal(butterChicken),
+      name: "Thai green curry",
+      method: "Simmer for an hour",
     });
     expect(theSheet()).toBeNull();
   });
 
-  it("leaves the Week it drew alone when a Recipe is saved", async () => {
-    const saveMeal = vi.fn(() => Promise.resolve(cookedBank[0]!));
+  it("leaves the drawn Week alone when a Meal is saved, and re-runs no flip", async () => {
+    const saveMeal = vi.fn(() => Promise.resolve(butterChicken));
     render(
-      <AWeek
-        cookingDays={cookingDays}
-        mealBank={cookedBank}
-        parts={{ saveMeal }}
-      />,
+      <AWeek cookingDays={cookingDays} mealBank={bank} parts={{ saveMeal }} />,
     );
 
     spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
     const before = cookingDays.map(
       (day) => cardFor(dayLabels[day]).textContent,
     );
+    const monday = cardFor("Monday");
 
-    click(wayInFor("Sunday")!);
-    fireEvent.change(methodField(), { target: { value: "Fry it longer" } });
+    click(nameOn("Sunday", "Butter chicken")!);
+    fireEvent.change(methodField(), {
+      target: { value: "Simmer for an hour" },
+    });
     await saveIt();
 
     expect(
       cookingDays.map((day) => cardFor(dayLabels[day]).textContent),
     ).toEqual(before);
+    expect(cardFor("Monday")).toBe(monday);
     expect(theWheel()).toBeNull();
   });
 
-  it("says the Week out loud as names, without the Recipe", () => {
-    render(<AWeek cookingDays={["sunday"]} mealBank={justButterChicken} />);
+  it("keeps the sheet open with the writing intact when a save is refused", async () => {
+    const saveMeal = vi.fn(() => Promise.resolve(null));
+    render(
+      <AWeek cookingDays={cookingDays} mealBank={bank} parts={{ saveMeal }} />,
+    );
 
     spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
+    const before = cookingDays.map(
+      (day) => cardFor(dayLabels[day]).textContent,
+    );
+
+    click(nameOn("Sunday", "Butter chicken")!);
+    fireEvent.change(nameField(), { target: { value: "Lasagne" } });
+    await saveIt();
+
+    expect(theSheet()).toBeInTheDocument();
+    expect(nameField()).toHaveValue("Lasagne");
+    expect(
+      cookingDays.map((day) => cardFor(dayLabels[day]).textContent),
+    ).toEqual(before);
+  });
+
+  it("says the Week out loud as names, without the descriptions", () => {
+    render(<AWeek cookingDays={["sunday"]} mealBank={[butterChicken]} />);
+
+    spinIt();
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Sunday: Butter chicken",
     );
-    expect(screen.getByRole("status")).not.toHaveTextContent(fryThePaste);
+    expect(screen.getByRole("status")).not.toHaveTextContent(coconutMilk);
   });
 
-  it("shares the Week as names, without the Recipe", async () => {
+  it("shares the Week as names, without the descriptions", async () => {
     const shared = withAShareSheet();
-    render(<AWeek cookingDays={["sunday"]} mealBank={justButterChicken} />);
+    render(<AWeek cookingDays={["sunday"]} mealBank={[butterChicken]} />);
 
     spinIt();
-    click(openerFor("Sunday", "Butter chicken")!);
     await act(async () => {
       click(screen.getByRole("button", { name: /share/i }));
       await Promise.resolve();

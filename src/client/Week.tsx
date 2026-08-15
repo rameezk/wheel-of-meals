@@ -11,12 +11,12 @@ import type { OpenHousehold } from "./open-household";
 import { MealSheet } from "./MealSheet";
 import { ShareButton } from "./Share";
 import { weekAsText } from "./sharing";
-import { loudButtonStyle, openableTextStyle, quietButtonStyle } from "./styles";
+import { loudButtonStyle, openableTextStyle } from "./styles";
 import { TheWheel } from "./Wheel";
 
 const nameStyle = "min-w-0 text-right break-words text-stone-100";
 
-const descriptionButtonStyle = `${nameStyle} ${openableTextStyle} cursor-pointer hover:decoration-stone-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400`;
+const nameButtonStyle = `${nameStyle} ${openableTextStyle} cursor-pointer hover:decoration-stone-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400`;
 
 const respinButtonStyle =
   "-my-1.5 flex h-9 w-9 shrink-0 items-center justify-center self-start rounded-full border border-stone-800 text-lg text-stone-400 transition hover:border-stone-600 hover:text-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400 disabled:border-stone-800/60 disabled:text-stone-600 disabled:hover:border-stone-800/60 disabled:hover:text-stone-600";
@@ -36,56 +36,24 @@ const readOutDay = ({ day, meal }: Week[number]) =>
 
 const readOut = (week: Week) => week.map(readOutDay).join(", ");
 
-const whatThePanelHolds = (meal: Meal) =>
-  meal.description && meal.recipe
-    ? "description and Recipe"
-    : meal.recipe
-      ? "Recipe"
-      : "description";
+const DrawnMeal = ({ meal, onOpen }: { meal: Meal; onOpen: () => void }) => (
+  <span className="flex min-w-0 flex-col items-end gap-1">
+    <button
+      type="button"
+      aria-label={`Open ${meal.name}`}
+      onClick={onOpen}
+      className={nameButtonStyle}
+    >
+      {meal.name}
+    </button>
 
-const DrawnMeal = ({
-  meal,
-  onOpenRecipe,
-}: {
-  meal: Meal;
-  onOpenRecipe: () => void;
-}) => {
-  const [open, setOpen] = useState(false);
-
-  if (!meal.description && !meal.recipe)
-    return <span className={nameStyle}>{meal.name}</span>;
-
-  return (
-    <span className="flex min-w-0 flex-col items-end gap-1">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((shown) => !shown)}
-        className={descriptionButtonStyle}
-      >
-        {meal.name}
-        <span className="sr-only">, {whatThePanelHolds(meal)}</span>
-      </button>
-
-      {open && meal.description && (
-        <span className="text-right text-sm break-words text-stone-400">
-          {meal.description}
-        </span>
-      )}
-
-      {open && meal.recipe && (
-        <button
-          type="button"
-          aria-label={`Recipe for ${meal.name}`}
-          onClick={onOpenRecipe}
-          className={`${quietButtonStyle} mt-0.5`}
-        >
-          Recipe
-        </button>
-      )}
-    </span>
-  );
-};
+    {meal.description && (
+      <span className="text-right text-sm break-words text-stone-400">
+        {meal.description}
+      </span>
+    )}
+  </span>
+);
 
 export const TheWeek = ({
   openHousehold,
@@ -102,17 +70,23 @@ export const TheWeek = ({
   const [spun, setSpun] = useState(0);
   const [respun, setRespun] = useState<Partial<Record<CookingDay, number>>>({});
   const [said, setSaid] = useState("");
-  const [readingRecipeOf, setReadingRecipeOf] = useState<string | null>(null);
+  const [openMealOf, setOpenMealOf] = useState<string | null>(null);
 
   const asHeldNow = (drawn: Meal) =>
     mealBank.find((held) => held.id === drawn.id) ?? drawn;
+
+  const heldNow = (drawn: Week): Week =>
+    drawn.map((slot) => ({
+      ...slot,
+      meal: slot.meal ? asHeldNow(slot.meal) : null,
+    }));
 
   const land = (drawn: Week) => {
     setLanding(null);
     setWeek(drawn);
     setSpun((count) => count + 1);
     setRespun({});
-    setReadingRecipeOf(null);
+    setOpenMealOf(null);
     setSaid(readOut(drawn));
   };
 
@@ -126,28 +100,28 @@ export const TheWeek = ({
 
     setWeek(respunWeek);
     setRespun((counts) => ({ ...counts, [day]: (counts[day] ?? 0) + 1 }));
-    setReadingRecipeOf(null);
+    setOpenMealOf(null);
     setSaid(readOutDay({ day, meal: drawnOn(respunWeek, day) }));
   };
 
-  const readTheRecipe = (meal: Meal) => {
+  const openTheMeal = (id: string) => {
     if (landing) return;
 
     openHousehold.dismiss();
-    setReadingRecipeOf(meal.id);
+    setOpenMealOf(id);
   };
 
-  const saveTheMeal = async (meal: Meal, draft: WholeMeal) => {
-    if (!(await openHousehold.saveMeal(meal.id, draft))) return;
+  const saveTheMeal = async (id: string, draft: WholeMeal) => {
+    if (!(await openHousehold.saveMeal(id, draft))) return;
 
-    forgetDraft(meal.id);
-    setReadingRecipeOf(null);
+    forgetDraft(id);
+    setOpenMealOf(null);
   };
 
   const flips = spun > 0;
   const noSpares = week !== null && spareMeals(week, mealBank).length === 0;
-  const readingRecipe =
-    mealBank.find((meal) => meal.id === readingRecipeOf) ?? null;
+  const openMeal = mealBank.find((meal) => meal.id === openMealOf) ?? null;
+  const shareText = week && weekAsText(heldNow(week));
 
   return (
     <section className="flex w-full flex-col gap-5">
@@ -207,7 +181,7 @@ export const TheWeek = ({
                     {meal ? (
                       <DrawnMeal
                         meal={asHeldNow(meal)}
-                        onOpenRecipe={() => readTheRecipe(meal)}
+                        onOpen={() => openTheMeal(meal.id)}
                       />
                     ) : (
                       <span className={nameStyle}>
@@ -266,21 +240,21 @@ export const TheWeek = ({
         )
       )}
 
-      {week && !landing && (
+      {shareText !== null && !landing && (
         <ShareButton
-          key={weekAsText(week)}
+          key={shareText}
           label="Share the Week"
-          shareable={{ title: "The Week", text: weekAsText(week) }}
+          shareable={{ title: "The Week", text: shareText }}
         />
       )}
 
-      {readingRecipe && (
+      {openMeal && (
         <MealSheet
-          meal={readingRecipe}
+          meal={openMeal}
           working={working}
           problem={problem}
-          onSave={(draft) => void saveTheMeal(readingRecipe, draft)}
-          onClose={() => setReadingRecipeOf(null)}
+          onSave={(draft) => void saveTheMeal(openMeal.id, draft)}
+          onClose={() => setOpenMealOf(null)}
         />
       )}
     </section>

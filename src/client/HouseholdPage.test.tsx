@@ -230,14 +230,7 @@ describe("a Household page", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: /skip/i }));
     await userEvent.click(
-      screen.getByRole("button", {
-        name: `${aMealWithARecipe.name}, Recipe`,
-      }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: `Recipe for ${aMealWithARecipe.name}`,
-      }),
+      screen.getByRole("button", { name: `Open ${aMealWithARecipe.name}` }),
     );
     await userEvent.type(screen.getByLabelText(/method/i), friedLonger);
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -249,39 +242,65 @@ describe("a Household page", () => {
     expect(screen.getByLabelText(/method/i)).toHaveValue(friedLonger);
   });
 
-  it("drops the way in when the Recipe is emptied from the Week", async () => {
-    render(
-      thePage(
-        householdsInMemory({
-          ...aHousehold,
-          cookingDays: ["sunday"],
-          mealBank: [aMealWithARecipe],
-        }),
-      ),
-    );
+  it("renames a bare drawn Meal from the Week and stands the Week on the change", async () => {
+    const households = householdsInMemory({
+      ...aHousehold,
+      cookingDays: ["sunday", "monday"],
+      mealBank: [
+        { id: "meal-1", name: "Curry", description: null, recipe: null },
+        { id: "meal-2", name: "Lasagne", description: null, recipe: null },
+      ],
+    });
+    vi.spyOn(Math, "random").mockReturnValue(0);
+    render(thePage(households));
 
     await userEvent.click(
       await screen.findByRole("button", { name: /^spin/i }),
     );
     await userEvent.click(screen.getByRole("button", { name: /skip/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: `${aMealWithARecipe.name}, Recipe` }),
-    );
-    await userEvent.click(
-      screen.getByRole("button", {
-        name: `Recipe for ${aMealWithARecipe.name}`,
-      }),
-    );
-    await userEvent.clear(screen.getByLabelText(/source/i));
+
+    const monday = screen.getByText("Monday").closest("li")!;
+    await userEvent.click(screen.getByRole("button", { name: "Open Curry" }));
+    await userEvent.clear(screen.getByLabelText(/^name$/i));
+    await userEvent.type(screen.getByLabelText(/^name$/i), "Thai green curry");
+    await userEvent.type(screen.getByLabelText(/method/i), friedLonger);
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
-    await userEvent.click(
-      screen.getByRole("button", { name: /^yes, remove the recipe/i }),
-    );
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /^recipe for/i })).toBeNull();
     expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
-      aMealWithARecipe.name,
+      "Thai green curry",
+    );
+    expect(monday).toHaveTextContent("Lasagne");
+    expect(screen.queryByText("Curry")).not.toBeInTheDocument();
+  });
+
+  it("shares the Week under the Meals' current names, not the drawn ones", async () => {
+    const share = withAShareSheet();
+    const households = householdsInMemory({
+      ...aHousehold,
+      cookingDays: ["sunday"],
+      mealBank: [
+        { id: "meal-1", name: "Curry", description: null, recipe: null },
+      ],
+    });
+    render(thePage(households));
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^spin/i }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /skip/i }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Open Curry" }));
+    await userEvent.clear(screen.getByLabelText(/^name$/i));
+    await userEvent.type(screen.getByLabelText(/^name$/i), "Thai green curry");
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /share the week/i }),
+    );
+
+    expect(share).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "Sunday: Thai green curry" }),
     );
   });
 
