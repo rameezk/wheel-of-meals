@@ -7,6 +7,7 @@ import { RespinIcon } from "./Icons";
 import type { WholeMeal } from "./households";
 import { forgetDraft } from "./meal-drafts";
 import { flipStaggerMillis } from "./motion";
+import { RecipeMarker } from "./RecipeMarker";
 import type { OpenHousehold } from "./open-household";
 import { MealSheet } from "./MealSheet";
 import { ShareButton } from "./Share";
@@ -38,14 +39,17 @@ const readOut = (week: Week) => week.map(readOutDay).join(", ");
 
 const DrawnMeal = ({ meal, onOpen }: { meal: Meal; onOpen: () => void }) => (
   <span className="flex min-w-0 flex-col items-end gap-1">
-    <button
-      type="button"
-      aria-label={`Open ${meal.name}`}
-      onClick={onOpen}
-      className={nameButtonStyle}
-    >
-      {meal.name}
-    </button>
+    <span className="flex min-w-0 items-baseline gap-1.5">
+      <button
+        type="button"
+        aria-label={`Open ${meal.name}`}
+        onClick={onOpen}
+        className={nameButtonStyle}
+      >
+        {meal.name}
+      </button>
+      {meal.recipe && <RecipeMarker recipe={meal.recipe} />}
+    </span>
 
     {meal.description && (
       <span className="text-right text-sm break-words text-stone-400">

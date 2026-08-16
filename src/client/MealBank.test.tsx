@@ -7,7 +7,7 @@ import { HouseholdPage } from "./HouseholdPage";
 import { householdsInMemory } from "./households-in-memory";
 import { wholeMeal } from "./meals";
 import { landedHighlightMillis } from "./motion";
-import { hasAMethodRecipe, hasASourceRecipe } from "./MealRow";
+import { hasAMethodRecipe, hasASourceRecipe } from "./RecipeMarker";
 import { methodTooLong } from "../shared/recipe";
 import { removesTheRecipe } from "./Meal";
 import { landedRowStyle } from "./styles";

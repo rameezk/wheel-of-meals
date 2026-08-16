@@ -6,6 +6,7 @@ import { dayLabels } from "./days";
 import { wholeMeal } from "./meals";
 import { flipStaggerMillis, wheelSpinMillis } from "./motion";
 import type { OpenHousehold } from "./open-household";
+import { hasAMethodRecipe, hasASourceRecipe } from "./RecipeMarker";
 import {
   anOpenHousehold,
   aRecipe,
@@ -758,5 +759,63 @@ describe("a drawn Meal's sheet", () => {
     expect(shared).toHaveBeenCalledWith(
       expect.objectContaining({ text: "Sunday: Butter chicken" }),
     );
+  });
+});
+
+describe("a drawn Meal's Recipe", () => {
+  const threeDays: CookingDay[] = ["sunday", "monday", "tuesday"];
+
+  const withASource: Meal = {
+    id: "meal-Bobotie",
+    name: "Bobotie",
+    description: null,
+    recipe: aRecipe({ source: "https://recipes.example.com/bobotie" }),
+  };
+
+  const writtenByTheCook: Meal = {
+    id: "meal-Shakshuka",
+    name: "Shakshuka",
+    description: null,
+    recipe: aRecipe({ method: "Fry the paste for two minutes" }),
+  };
+
+  const withNoRecipe: Meal = {
+    id: "meal-Lasagne",
+    name: "Lasagne",
+    description: null,
+    recipe: null,
+  };
+
+  const bank = [withASource, writtenByTheCook, withNoRecipe];
+
+  beforeEach(() => {
+    vi.spyOn(Math, "random").mockReturnValue(0);
+  });
+
+  it("marks a drawn Meal whose Recipe has a Source as one to follow", () => {
+    render(<AWeek cookingDays={threeDays} mealBank={bank} />);
+
+    spinIt();
+
+    expect(cardFor("Sunday")).toHaveTextContent(hasASourceRecipe);
+    expect(cardFor("Sunday")).not.toHaveTextContent(hasAMethodRecipe);
+  });
+
+  it("marks a drawn Meal whose Recipe has no Source as one of its own", () => {
+    render(<AWeek cookingDays={threeDays} mealBank={bank} />);
+
+    spinIt();
+
+    expect(cardFor("Monday")).toHaveTextContent(hasAMethodRecipe);
+    expect(cardFor("Monday")).not.toHaveTextContent(hasASourceRecipe);
+  });
+
+  it("leaves a drawn Meal with no Recipe unmarked", () => {
+    render(<AWeek cookingDays={threeDays} mealBank={bank} />);
+
+    spinIt();
+
+    expect(cardFor("Tuesday")).not.toHaveTextContent(hasASourceRecipe);
+    expect(cardFor("Tuesday")).not.toHaveTextContent(hasAMethodRecipe);
   });
 });

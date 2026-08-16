@@ -1,13 +1,10 @@
 import type { Meal } from "../shared/meal";
-import { MethodIcon, SourceIcon } from "./Icons";
+import { RecipeMarker } from "./RecipeMarker";
 import {
   openableTextStyle,
   quietButtonStyle,
   reallyButtonStyle,
 } from "./styles";
-
-export const hasASourceRecipe = "has a Recipe to follow";
-export const hasAMethodRecipe = "has a Recipe of its own";
 
 const rowTextStyle =
   "group flex min-h-11 min-w-0 flex-1 cursor-pointer flex-col items-start justify-center gap-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
@@ -35,14 +32,7 @@ export const MealRow = ({
     <button type="button" onClick={onOpen} className={rowTextStyle}>
       <span className="flex min-w-0 items-baseline gap-1.5">
         <span className={nameStyle}>{meal.name}</span>
-        {meal.recipe && (
-          <span className="shrink-0 self-center text-sm text-emerald-300">
-            {meal.recipe.source ? <SourceIcon /> : <MethodIcon />}
-            <span className="sr-only">
-              , {meal.recipe.source ? hasASourceRecipe : hasAMethodRecipe}
-            </span>
-          </span>
-        )}
+        {meal.recipe && <RecipeMarker recipe={meal.recipe} />}
       </span>
       {meal.description && (
         <span className="text-sm break-words text-stone-400">
