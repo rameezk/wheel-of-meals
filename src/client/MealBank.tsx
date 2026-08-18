@@ -60,10 +60,9 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
   };
 
   const saveMeal = async (meal: Meal, draft: WholeMeal) => {
-    if (!(await openHousehold.saveMeal(meal.id, draft))) return;
-
-    forgetDraft(meal.id);
-    setOpened(null);
+    const saved = await openHousehold.saveMeal(meal.id, draft);
+    if (saved) forgetDraft(meal.id);
+    return saved;
   };
 
   const remove = async (meal: Meal) => {
@@ -186,7 +185,7 @@ export const MealBank = ({ openHousehold, onBack }: MealBankProps) => {
           meal={editing}
           working={working}
           problem={problem}
-          onSave={(draft) => void saveMeal(editing, draft)}
+          onSave={(draft) => saveMeal(editing, draft)}
           onClose={() => setOpened(null)}
         />
       )}

@@ -514,7 +514,15 @@ describe("a drawn Meal's sheet", () => {
 
   const theSheet = () => screen.queryByRole("dialog");
 
-  const close = () => click(screen.getByRole("button", { name: /cancel/i }));
+  const close = () => click(screen.getByRole("button", { name: /close/i }));
+
+  const startEditing = () =>
+    click(screen.getByRole("button", { name: "Edit" }));
+
+  const shows = (value: string) =>
+    within(theSheet()!).getByText(
+      (_, element) => element?.textContent === value,
+    );
 
   const nameField = () => screen.getByLabelText(/^name$/i);
 
@@ -601,7 +609,7 @@ describe("a drawn Meal's sheet", () => {
     click(nameOn("Tuesday", "Bobotie")!);
 
     expect(theSheet()).toHaveAccessibleName("Bobotie");
-    expect(methodField()).toHaveValue(fryThePaste);
+    expect(shows(fryThePaste)).toBeInTheDocument();
     expect(
       within(theSheet()!).getByRole("link", { name: source }),
     ).toHaveAttribute("href", source);
@@ -674,6 +682,7 @@ describe("a drawn Meal's sheet", () => {
 
     spinIt();
     click(nameOn("Sunday", "Butter chicken")!);
+    startEditing();
     fireEvent.change(nameField(), { target: { value: "Thai green curry" } });
     fireEvent.change(methodField(), {
       target: { value: "Simmer for an hour" },
@@ -685,7 +694,8 @@ describe("a drawn Meal's sheet", () => {
       name: "Thai green curry",
       method: "Simmer for an hour",
     });
-    expect(theSheet()).toBeNull();
+    expect(theSheet()).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).toBeInTheDocument();
   });
 
   it("leaves the drawn Week alone when a Meal is saved, and re-runs no flip", async () => {
@@ -701,6 +711,7 @@ describe("a drawn Meal's sheet", () => {
     const monday = cardFor("Monday");
 
     click(nameOn("Sunday", "Butter chicken")!);
+    startEditing();
     fireEvent.change(methodField(), {
       target: { value: "Simmer for an hour" },
     });
@@ -725,6 +736,7 @@ describe("a drawn Meal's sheet", () => {
     );
 
     click(nameOn("Sunday", "Butter chicken")!);
+    startEditing();
     fireEvent.change(nameField(), { target: { value: "Lasagne" } });
     await saveIt();
 

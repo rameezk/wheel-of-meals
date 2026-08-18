@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { tooManyRequests } from "../shared/api";
@@ -232,14 +232,23 @@ describe("a Household page", () => {
     await userEvent.click(
       screen.getByRole("button", { name: `Open ${aMealWithARecipe.name}` }),
     );
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
     await userEvent.type(screen.getByLabelText(/method/i), friedLonger);
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog")).getByText(
+        (_, element) => element?.textContent === friedLonger,
+      ),
+    ).toBeInTheDocument();
 
     rerender(thePage(households, { view: "meal-bank" }));
     await userEvent.click(await screen.findByText(aMealWithARecipe.name));
 
-    expect(screen.getByLabelText(/method/i)).toHaveValue(friedLonger);
+    expect(
+      within(screen.getByRole("dialog")).getByText(
+        (_, element) => element?.textContent === friedLonger,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("renames a bare drawn Meal from the Week and stands the Week on the change", async () => {
@@ -261,10 +270,12 @@ describe("a Household page", () => {
 
     const monday = screen.getByText("Monday").closest("li")!;
     await userEvent.click(screen.getByRole("button", { name: "Open Curry" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
     await userEvent.clear(screen.getByLabelText(/^name$/i));
     await userEvent.type(screen.getByLabelText(/^name$/i), "Thai green curry");
     await userEvent.type(screen.getByLabelText(/method/i), friedLonger);
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    await userEvent.click(screen.getByRole("button", { name: /close/i }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Sunday").closest("li")).toHaveTextContent(
@@ -291,9 +302,11 @@ describe("a Household page", () => {
     await userEvent.click(screen.getByRole("button", { name: /skip/i }));
 
     await userEvent.click(screen.getByRole("button", { name: "Open Curry" }));
+    await userEvent.click(screen.getByRole("button", { name: "Edit" }));
     await userEvent.clear(screen.getByLabelText(/^name$/i));
     await userEvent.type(screen.getByLabelText(/^name$/i), "Thai green curry");
     await userEvent.click(screen.getByRole("button", { name: /save/i }));
+    await userEvent.click(screen.getByRole("button", { name: /close/i }));
 
     await userEvent.click(
       await screen.findByRole("button", { name: /share the week/i }),

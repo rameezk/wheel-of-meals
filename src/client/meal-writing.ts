@@ -39,10 +39,7 @@ const opened = (meal: Meal) => {
   return { draft: held, restored: true };
 };
 
-export const useMealWriting = (
-  meal: Meal,
-  onClose: () => void,
-): MealWriting => {
+export const useMealWriting = (meal: Meal, onDone: () => void): MealWriting => {
   const [writing, setWriting] = useState(() => opened(meal));
   const [asking, setAsking] = useState<Question | null>(null);
 
@@ -65,12 +62,16 @@ export const useMealWriting = (
     asking,
     change: (part) => hold({ ...writing.draft, ...part }, writing.restored),
     askToEmpty: () => setAsking("emptying"),
-    askToLeave: () => (unsaved ? setAsking("leaving") : onClose()),
+    askToLeave: () => (unsaved ? setAsking("leaving") : onDone()),
     keepWriting: () => setAsking(null),
-    dropTheDraft: () => hold(saved, false),
+    dropTheDraft: () => {
+      hold(saved, false);
+      onDone();
+    },
     leave: () => {
       forgetDraft(meal.id);
-      onClose();
+      setAsking(null);
+      onDone();
     },
   };
 };
