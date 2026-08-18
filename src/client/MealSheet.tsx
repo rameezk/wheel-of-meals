@@ -4,6 +4,7 @@ import type { WholeMeal } from "./households";
 import { TheMeal } from "./Meal";
 import { ReadMeal } from "./ReadMeal";
 import { useMealWriting } from "./meal-writing";
+import { useScrollLock } from "./scroll-lock";
 
 type MealSheetProps = {
   meal: Meal;
@@ -40,6 +41,8 @@ export const MealSheet = ({
   const latest = useRef(writing);
   const modeRef = useRef(mode);
   const closeRef = useRef(onClose);
+
+  useScrollLock();
 
   useEffect(() => {
     latest.current = writing;

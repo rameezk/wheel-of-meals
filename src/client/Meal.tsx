@@ -76,7 +76,7 @@ export const TheMeal = ({
 
   return (
     <form onSubmit={save} className="flex min-h-0 flex-1 flex-col gap-5">
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain">
         <h3
           id={headingId}
           className="text-lg font-semibold break-words text-stone-100"
