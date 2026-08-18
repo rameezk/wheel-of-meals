@@ -1,5 +1,5 @@
 export const fieldStyle =
-  "w-full rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-base text-stone-100 placeholder:text-stone-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
+  "w-full rounded-xl border border-stone-800 bg-stone-900 px-4 py-3 text-base text-stone-100 placeholder:text-stone-600 focus-visible:outline-none focus-visible:border-emerald-400 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-400";
 
 export const loudButtonStyle =
   "rounded-full bg-emerald-500 text-stone-950 transition hover:bg-emerald-400 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
