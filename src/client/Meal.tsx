@@ -10,8 +10,6 @@ import type { WholeMeal } from "./households";
 import { MealFields } from "./MealFields";
 import { named } from "./meals";
 import type { MealWriting } from "./meal-writing";
-import { ShareButton } from "./Share";
-import { recipeAsShareable } from "./sharing";
 import {
   alertStyle,
   fieldStyle,
@@ -29,9 +27,6 @@ type TheMealProps = {
   writing: MealWriting;
   onSave: (draft: WholeMeal) => void;
 };
-
-const sourceLinkStyle =
-  "self-start break-all text-sm text-emerald-300 underline decoration-emerald-500/50 underline-offset-4 transition hover:decoration-emerald-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400";
 
 const labelStyle = "flex flex-col gap-1.5 text-sm text-stone-400";
 
@@ -123,17 +118,6 @@ export const TheMeal = ({
             className={fieldStyle}
           />
         </label>
-
-        {meal.recipe?.source && (
-          <a
-            href={meal.recipe.source}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={sourceLinkStyle}
-          >
-            {meal.recipe.source}
-          </a>
-        )}
 
         <label className={labelStyle} htmlFor={ingredientsField}>
           Ingredients (optional)
@@ -232,13 +216,6 @@ export const TheMeal = ({
                 Cancel
               </button>
             </>
-          )}
-
-          {meal.recipe && (
-            <ShareButton
-              label="Share the Recipe"
-              shareable={recipeAsShareable(meal.name, meal.recipe)}
-            />
           )}
         </div>
       </div>

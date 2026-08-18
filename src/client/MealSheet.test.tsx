@@ -45,6 +45,11 @@ const press = (name: string | RegExp) =>
 
 const openRecipe = (meal: Meal) => userEvent.click(screen.getByText(meal.name));
 
+const editRecipe = async (meal: Meal) => {
+  await openRecipe(meal);
+  await press("Edit");
+};
+
 const sourceField = () => screen.getByLabelText(/source/i);
 
 const methodField = () => screen.getByLabelText(/method/i);
@@ -55,6 +60,13 @@ const saveButton = () => screen.getByRole("button", { name: "Save" });
 
 const theSheet = (meal: Meal) =>
   screen.queryByRole("dialog", { name: meal.name });
+
+const editButton = () => screen.getByRole("button", { name: "Edit" });
+
+const shows = (value: string) =>
+  within(screen.getByRole("dialog")).getByText(
+    (_, element) => element?.textContent === value,
+  );
 
 const theNotice = () => screen.queryByText(unsavedFromBefore);
 
@@ -71,11 +83,11 @@ afterEach(() => {
   withNoSharing();
 });
 
-describe("closing a Recipe sheet with unsaved changes", () => {
-  it("asks before the close control throws the writing away", async () => {
+describe("leaving an edit with unsaved changes", () => {
+  it("asks before Cancel throws the writing away", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Cancel");
 
@@ -87,7 +99,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
   it("counts a changed name as unsaved work", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(nameField(), " curry");
     await press("Cancel");
 
@@ -98,7 +110,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
   it("counts a changed description as unsaved work", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(
       within(theSheet(aMeal)!).getByLabelText(/description/i),
       " tonight",
@@ -112,7 +124,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
   it("asks before the keyboard throws the writing away", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await userEvent.keyboard("{Escape}");
 
@@ -123,7 +135,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
   it("asks before the back gesture throws the writing away", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     goBack();
 
@@ -131,55 +143,63 @@ describe("closing a Recipe sheet with unsaved changes", () => {
     expect(theSheet(aMeal)).toBeInTheDocument();
   });
 
-  it("still closes the back gesture once the writing is let go of", async () => {
+  it("returns to reading once the writing is let go of, then closes", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     goBack();
     await press(`Yes, discard the writing for ${aMeal.name}`);
 
+    expect(editButton()).toBeInTheDocument();
+    expect(theSheet(aMeal)).toBeInTheDocument();
+
+    goBack();
     expect(theSheet(aMeal)).not.toBeInTheDocument();
   });
 
-  it("closes an untouched sheet at once, asking nothing", async () => {
+  it("returns to reading from an untouched edit, asking nothing", async () => {
     await showBank(aBankOf([aMealWithARecipe]));
 
-    await openRecipe(aMealWithARecipe);
+    await editRecipe(aMealWithARecipe);
     await press("Cancel");
 
-    expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
+    expect(theQuestion()).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
+    expect(theSheet(aMealWithARecipe)).toBeInTheDocument();
   });
 
   it("counts writing that has been put back as it was as untouched", async () => {
     await showBank(aBankOf([aMealWithARecipe]));
 
-    await openRecipe(aMealWithARecipe);
+    await editRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
     await userEvent.type(sourceField(), aSource);
     await press("Cancel");
 
-    expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
+    expect(theQuestion()).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
   });
 
-  it("closes and writes nothing once the discard is confirmed", async () => {
+  it("returns to reading and writes nothing once the discard is confirmed", async () => {
     const households = aBankOf([aMeal]);
     const setting = vi.spyOn(households, "saveMeal");
     await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Cancel");
     await press(`Yes, discard the writing for ${aMeal.name}`);
 
-    expect(theSheet(aMeal)).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
+    expect(theQuestion()).not.toBeInTheDocument();
     expect(setting).not.toHaveBeenCalled();
   });
 
   it("leaves the sheet as it was when the discard is declined", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Cancel");
     await press(`Keep writing ${aMeal.name}`);
@@ -194,7 +214,7 @@ describe("closing a Recipe sheet with unsaved changes", () => {
     const confirming = vi.spyOn(window, "confirm");
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Cancel");
 
@@ -206,16 +226,16 @@ describe("closing a Recipe sheet with unsaved changes", () => {
   it("has nothing left to lose straight after a save", async () => {
     await showBank(aBankOf([aMeal]));
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Save");
-    await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
+    await screen.findByRole("button", { name: "Edit" });
 
-    await openRecipe(aMeal);
+    await press("Edit");
     await press("Cancel");
 
-    expect(theSheet(aMeal)).not.toBeInTheDocument();
     expect(theQuestion()).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
   });
 });
 
@@ -224,7 +244,7 @@ describe("a Recipe the device held on to", () => {
     const households = aBankOf([aMeal]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     shown.unmount();
 
@@ -238,7 +258,7 @@ describe("a Recipe the device held on to", () => {
     const households = aBankOf([aMeal]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.clear(nameField());
     await userEvent.type(nameField(), "Bunny chow");
     await userEvent.type(methodField(), "Fry the paste.");
@@ -255,7 +275,7 @@ describe("a Recipe the device held on to", () => {
     const households = aBankOf([aMeal]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.clear(nameField());
     shown.unmount();
 
@@ -270,6 +290,24 @@ describe("a Recipe the device held on to", () => {
     expect(saveButton()).toBeEnabled();
   });
 
+  it("opens straight into editing when a draft is held", async () => {
+    const households = aBankOf([aMeal]);
+    const shown = await showBank(households);
+
+    await editRecipe(aMeal);
+    await userEvent.type(methodField(), "Fry the paste.");
+    shown.unmount();
+
+    await showBank(households);
+    await openRecipe(aMeal);
+
+    expect(theNotice()).toBeInTheDocument();
+    expect(methodField()).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Edit" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("abandons work held under the old Recipe-only key", async () => {
     localStorage.setItem(
       "wheel-of-meals.recipe-drafts",
@@ -282,6 +320,8 @@ describe("a Recipe the device held on to", () => {
     await openRecipe(aMeal);
 
     expect(theNotice()).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
+    await press("Edit");
     expect(methodField()).toHaveValue("");
   });
 
@@ -289,7 +329,7 @@ describe("a Recipe the device held on to", () => {
     const households = aBankOf([aMealWithARecipe]);
     const shown = await showBank(households);
 
-    await openRecipe(aMealWithARecipe);
+    await editRecipe(aMealWithARecipe);
     await userEvent.type(methodField(), "Fry the paste.");
     shown.unmount();
 
@@ -301,11 +341,11 @@ describe("a Recipe the device held on to", () => {
     expect(theQuestion()).toBeInTheDocument();
   });
 
-  it("hands back the saved Recipe when it is discarded", async () => {
+  it("hands back the saved Recipe as reading when it is discarded", async () => {
     const households = aBankOf([aMealWithARecipe]);
     const shown = await showBank(households);
 
-    await openRecipe(aMealWithARecipe);
+    await editRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
     await userEvent.type(methodField(), "Fry the paste.");
     shown.unmount();
@@ -315,17 +355,16 @@ describe("a Recipe the device held on to", () => {
     await press(`Discard the unsaved writing for ${aMealWithARecipe.name}`);
 
     expect(theNotice()).not.toBeInTheDocument();
-    expect(sourceField()).toHaveValue(aSource);
-    expect(methodField()).toHaveValue("");
-    await press("Cancel");
-    expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: aSource })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/method/i)).not.toBeInTheDocument();
   });
 
   it("says nothing when it says the same as the saved Recipe", async () => {
     const households = aBankOf([aMealWithARecipe]);
     const shown = await showBank(households);
 
-    await openRecipe(aMealWithARecipe);
+    await editRecipe(aMealWithARecipe);
     await userEvent.clear(sourceField());
     await userEvent.type(sourceField(), aSource);
     shown.unmount();
@@ -334,32 +373,31 @@ describe("a Recipe the device held on to", () => {
     await openRecipe(aMealWithARecipe);
 
     expect(theNotice()).not.toBeInTheDocument();
-    await press("Cancel");
-    expect(theSheet(aMealWithARecipe)).not.toBeInTheDocument();
+    expect(editButton()).toBeInTheDocument();
   });
 
   it("is let go of the moment a save lands", async () => {
     const households = aBankOf([aMeal]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Save");
-    await vi.waitFor(() => expect(theSheet(aMeal)).not.toBeInTheDocument());
+    await screen.findByRole("button", { name: "Edit" });
     shown.unmount();
 
     await showBank(households);
     await openRecipe(aMeal);
 
     expect(theNotice()).not.toBeInTheDocument();
-    expect(methodField()).toHaveValue("Fry the paste.");
+    expect(shows("Fry the paste.")).toBeInTheDocument();
   });
 
   it("is let go of once the cook has discarded it", async () => {
     const households = aBankOf([aMeal]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     await press("Cancel");
     await press(`Yes, discard the writing for ${aMeal.name}`);
@@ -369,6 +407,7 @@ describe("a Recipe the device held on to", () => {
     await openRecipe(aMeal);
 
     expect(theNotice()).not.toBeInTheDocument();
+    await press("Edit");
     expect(methodField()).toHaveValue("");
   });
 
@@ -376,7 +415,7 @@ describe("a Recipe the device held on to", () => {
     const households = aBankOf([aMeal, lasagne]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     shown.unmount();
 
@@ -384,6 +423,7 @@ describe("a Recipe the device held on to", () => {
     await openRecipe(lasagne);
 
     expect(theNotice()).not.toBeInTheDocument();
+    await press("Edit");
     expect(methodField()).toHaveValue("");
   });
 
@@ -391,7 +431,7 @@ describe("a Recipe the device held on to", () => {
     const households = aBankOf([aMeal]);
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     shown.unmount();
 
@@ -403,6 +443,7 @@ describe("a Recipe the device held on to", () => {
     await openRecipe(aMeal);
 
     expect(theNotice()).not.toBeInTheDocument();
+    await press("Edit");
     expect(methodField()).toHaveValue("");
   });
 
@@ -411,7 +452,7 @@ describe("a Recipe the device held on to", () => {
     const setting = vi.spyOn(households, "saveMeal");
     const shown = await showBank(households);
 
-    await openRecipe(aMeal);
+    await editRecipe(aMeal);
     await userEvent.type(methodField(), "Fry the paste.");
     shown.unmount();
 

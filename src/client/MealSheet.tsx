@@ -1,16 +1,19 @@
-import { useEffect, useId, useRef, type KeyboardEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import type { Meal } from "../shared/meal";
 import type { WholeMeal } from "./households";
 import { TheMeal } from "./Meal";
+import { ReadMeal } from "./ReadMeal";
 import { useMealWriting } from "./meal-writing";
 
 type MealSheetProps = {
   meal: Meal;
   working: boolean;
   problem: string | null;
-  onSave: (draft: WholeMeal) => void;
+  onSave: (draft: WholeMeal) => Promise<Meal | null>;
   onClose: () => void;
 };
+
+type Mode = "reading" | "editing";
 
 const canBeFocused =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -22,7 +25,11 @@ export const MealSheet = ({
   onSave,
   onClose,
 }: MealSheetProps) => {
-  const writing = useMealWriting(meal, onClose);
+  const toReading = useRef(() => {});
+  const writing = useMealWriting(meal, () => toReading.current());
+  const [mode, setMode] = useState<Mode>(
+    writing.restored ? "editing" : "reading",
+  );
   const headingId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const cameFrom = useRef(
@@ -31,9 +38,14 @@ export const MealSheet = ({
       : null,
   );
   const latest = useRef(writing);
+  const modeRef = useRef(mode);
+  const closeRef = useRef(onClose);
 
   useEffect(() => {
     latest.current = writing;
+    modeRef.current = mode;
+    closeRef.current = onClose;
+    toReading.current = () => setMode("reading");
   });
 
   useEffect(() => {
@@ -46,14 +58,14 @@ export const MealSheet = ({
     let wentBack = false;
 
     const back = () => {
-      if (latest.current.unsaved) {
+      if (modeRef.current === "editing") {
         window.history.pushState({ meal: meal.id }, "");
         latest.current.askToLeave();
         return;
       }
 
       wentBack = true;
-      latest.current.askToLeave();
+      closeRef.current();
     };
 
     window.addEventListener("popstate", back);
@@ -63,10 +75,15 @@ export const MealSheet = ({
     };
   }, [meal.id]);
 
+  const save = async (draft: WholeMeal) => {
+    if (await onSave(draft)) setMode("reading");
+  };
+
   const keptWithin = (event: KeyboardEvent) => {
     if (event.key === "Escape") {
       event.preventDefault();
-      writing.askToLeave();
+      if (mode === "editing") writing.askToLeave();
+      else onClose();
       return;
     }
 
@@ -98,14 +115,23 @@ export const MealSheet = ({
         onKeyDown={keptWithin}
         className="mx-auto flex max-h-full w-full max-w-md flex-1 flex-col overflow-hidden rounded-2xl border border-stone-800 bg-stone-950 p-5"
       >
-        <TheMeal
-          meal={meal}
-          headingId={headingId}
-          working={working}
-          problem={problem}
-          writing={writing}
-          onSave={onSave}
-        />
+        {mode === "editing" ? (
+          <TheMeal
+            meal={meal}
+            headingId={headingId}
+            working={working}
+            problem={problem}
+            writing={writing}
+            onSave={(draft) => void save(draft)}
+          />
+        ) : (
+          <ReadMeal
+            meal={meal}
+            headingId={headingId}
+            onEdit={() => setMode("editing")}
+            onClose={onClose}
+          />
+        )}
       </div>
     </div>
   );

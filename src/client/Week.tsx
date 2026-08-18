@@ -116,10 +116,9 @@ export const TheWeek = ({
   };
 
   const saveTheMeal = async (id: string, draft: WholeMeal) => {
-    if (!(await openHousehold.saveMeal(id, draft))) return;
-
-    forgetDraft(id);
-    setOpenMealOf(null);
+    const saved = await openHousehold.saveMeal(id, draft);
+    if (saved) forgetDraft(id);
+    return saved;
   };
 
   const flips = spun > 0;
@@ -257,7 +256,7 @@ export const TheWeek = ({
           meal={openMeal}
           working={working}
           problem={problem}
-          onSave={(draft) => void saveTheMeal(openMeal.id, draft)}
+          onSave={(draft) => saveTheMeal(openMeal.id, draft)}
           onClose={() => setOpenMealOf(null)}
         />
       )}
